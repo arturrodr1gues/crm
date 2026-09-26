@@ -1,25 +1,20 @@
 // Recebe eventos da UAZAPI e grava no CRM.
-// URL a cadastrar na UAZAPI:
-//   https://<projeto>.supabase.co/functions/v1/uazapi-webhook?secret=<WEBHOOK_SECRET>
+// A tela de Configurações cadastra a URL na UAZAPI automaticamente:
+//   https://<projeto>.supabase.co/functions/v1/uazapi-webhook?secret=<webhook_secret>
 // Deploy com: supabase functions deploy uazapi-webhook --no-verify-jwt
 
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { admin as supabase, lerConfig } from "../_shared/config.ts";
 import { normalizarEvento } from "../_shared/uazapi.ts";
-
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  { auth: { persistSession: false } },
-);
-const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET")!;
 
 const ok = (msg = "ok") => new Response(msg, { status: 200 });
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("método não permitido", { status: 405 });
 
+  // O secret é gerado e cadastrado na UAZAPI pela tela de Configurações.
+  const esperado = (await lerConfig())?.webhookSecret;
   const secret = new URL(req.url).searchParams.get("secret");
-  if (!WEBHOOK_SECRET || secret !== WEBHOOK_SECRET) {
+  if (!esperado || secret !== esperado) {
     return new Response("não autorizado", { status: 401 });
   }
 

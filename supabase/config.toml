@@ -4,3 +4,6 @@ verify_jwt = false   # a UAZAPI não manda JWT; a proteção é o ?secret= na UR
 
 [functions.whatsapp-send]
 verify_jwt = true
+
+[functions.whatsapp-config]
+verify_jwt = true

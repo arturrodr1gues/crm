@@ -1,7 +1,7 @@
 // Envia uma mensagem de texto para um contato, a partir do CRM.
 // Chamado pelo front com o JWT do usuário logado.
 
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { admin, lerConfig } from "../_shared/config.ts";
 import { enviarTexto } from "../_shared/uazapi.ts";
 
 const cors = {
@@ -14,12 +14,6 @@ const json = (data: unknown, status = 200) =>
 
 // Intervalo mínimo entre envios pela API. Ajuda a não parecer robô.
 const INTERVALO_MIN_MS = 4000;
-
-const admin = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  { auth: { persistSession: false } },
-);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -46,6 +40,9 @@ Deno.serve(async (req) => {
   const destino = contato.whatsapp_chatid ?? contato.telefone;
   if (!destino) return json({ error: "contato sem WhatsApp cadastrado" }, 400);
 
+  const cfg = await lerConfig();
+  if (!cfg) return json({ error: "WhatsApp ainda não configurado. Vá em Configurações." }, 409);
+
   // 3) Proteção do número: só puxa conversa com quem já falou com você
   //    ou autorizou contato (consentimento). Nada de mensagem fria pela API.
   if (!contato.consentimento_lgpd) {
@@ -70,7 +67,7 @@ Deno.serve(async (req) => {
 
   // 5) Envia e registra
   try {
-    const { messageId, raw } = await enviarTexto(destino, msg);
+    const { messageId, raw } = await enviarTexto(cfg, destino, msg);
     const { data: gravada, error } = await admin.from("mensagens").upsert({
       contato_id: contato.id,
       direcao: "out",

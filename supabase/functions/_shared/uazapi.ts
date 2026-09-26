@@ -2,8 +2,7 @@
 // mudar, só este arquivo precisa ser ajustado.
 // Docs: https://docs.uazapi.com/
 
-export const UAZAPI_URL = Deno.env.get("UAZAPI_URL")!;     // ex.: https://suaconta.uazapi.com
-export const UAZAPI_TOKEN = Deno.env.get("UAZAPI_TOKEN")!; // token da instância
+import type { UazapiConfig } from "./config.ts";
 
 export type MensagemNormalizada = {
   messageId: string;
@@ -78,17 +77,78 @@ export function normalizarEvento(body: any): MensagemNormalizada | null {
   };
 }
 
-/** Envia texto pela UAZAPI. `number` pode ser telefone (só dígitos) ou chatid. */
-export async function enviarTexto(number: string, text: string) {
-  const res = await fetch(`${UAZAPI_URL.replace(/\/$/, "")}/send/text`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", token: UAZAPI_TOKEN },
-    body: JSON.stringify({ number, text }),
+export class ErroUazapi extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
+
+/** Chamada genérica à API da instância (header `token`). */
+export async function chamar(cfg: UazapiConfig, method: "GET" | "POST", path: string, body?: unknown) {
+  const res = await fetch(`${cfg.url.replace(/\/$/, "")}${path}`, {
+    method,
+    headers: { "Content-Type": "application/json", token: cfg.token },
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data?.error ?? data?.message ?? `UAZAPI respondeu ${res.status}`);
+    throw new ErroUazapi(data?.error ?? data?.message ?? `UAZAPI respondeu ${res.status}`, res.status);
   }
+  return data;
+}
+
+/** Envia texto pela UAZAPI. `number` pode ser telefone (só dígitos) ou chatid. */
+export async function enviarTexto(cfg: UazapiConfig, number: string, text: string) {
+  const data = await chamar(cfg, "POST", "/send/text", { number, text });
   const messageId = primeiro(data?.messageid, data?.messageId, data?.id, data?.key?.id) as string | undefined;
   return { messageId: messageId ?? null, raw: data };
+}
+
+export type StatusInstancia = {
+  status: "disconnected" | "connecting" | "connected" | "hibernated" | string;
+  qrcode: string | null;
+  paircode: string | null;
+  nomePerfil: string | null;
+  numero: string | null;
+  fotoPerfil: string | null;
+  ultimaDesconexao: string | null;
+  motivoDesconexao: string | null;
+};
+
+/** GET /instance/status (e o retorno de /instance/connect, que tem o mesmo formato). */
+export function lerStatus(data: any): StatusInstancia {
+  const inst = data?.instance ?? {};
+  const jid = data?.status?.jid ?? data?.jid;
+  return {
+    status: inst.status ?? (data?.status?.connected ? "connected" : "disconnected"),
+    qrcode: inst.qrcode || null,
+    paircode: inst.paircode || null,
+    nomePerfil: inst.profileName || null,
+    numero: (typeof jid === "object" ? jid?.user : soDigitos(jid)) || null,
+    fotoPerfil: inst.profilePicUrl || null,
+    ultimaDesconexao: inst.lastDisconnect || null,
+    motivoDesconexao: inst.lastDisconnectReason || null,
+  };
+}
+
+export const statusInstancia = async (cfg: UazapiConfig) => lerStatus(await chamar(cfg, "GET", "/instance/status"));
+
+/** Sem `phone` a UAZAPI devolve QR Code; com `phone`, código de pareamento. */
+export const conectarInstancia = async (cfg: UazapiConfig, phone?: string) =>
+  lerStatus(await chamar(cfg, "POST", "/instance/connect", phone ? { phone } : {}));
+
+export const desconectarInstancia = (cfg: UazapiConfig) => chamar(cfg, "POST", "/instance/disconnect");
+
+/** Webhook no "modo simples" da UAZAPI: um único webhook por instância. */
+export const configurarWebhook = (cfg: UazapiConfig, url: string) =>
+  chamar(cfg, "POST", "/webhook", {
+    enabled: true,
+    url,
+    events: ["messages"],
+    // Mensagens que o próprio CRM envia já são gravadas pelo whatsapp-send.
+    excludeMessages: ["wasSentByApi", "isGroupYes"],
+  });
+
+export async function lerWebhook(cfg: UazapiConfig) {
+  const lista = await chamar(cfg, "GET", "/webhook");
+  return (Array.isArray(lista) ? lista : [lista]).filter(Boolean) as
+    { id?: string; enabled?: boolean; url?: string; events?: string[] }[];
 }

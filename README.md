@@ -23,9 +23,12 @@ Automatismos:
 ```
 supabase/
   migrations/0001_mvp.sql          tabelas, RLS, triggers, realtime, storage
+  migrations/0002_whatsapp_config.sql  servidor e token da UAZAPI (só as Edge Functions leem)
   functions/_shared/uazapi.ts      tudo que é específico da UAZAPI
+  functions/_shared/config.ts      lê a configuração salva pela tela de Ajustes
   functions/uazapi-webhook/        recebe mensagens
   functions/whatsapp-send/         envia mensagens (com travas de proteção)
+  functions/whatsapp-config/       conectar/desconectar o WhatsApp e cadastrar o webhook
 web/                               React + Tailwind (Vite)
 ```
 
@@ -42,20 +45,18 @@ web/                               React + Tailwind (Vite)
 
 ### 2. Edge Functions
 ```bash
-supabase secrets set UAZAPI_URL=https://SUA-SUBDOMINIO.uazapi.com \
-                     UAZAPI_TOKEN=TOKEN_DA_INSTANCIA \
-                     WEBHOOK_SECRET=$(openssl rand -hex 24) \
-                     APP_ORIGIN=https://endereco-do-seu-crm.com
+supabase secrets set APP_ORIGIN=https://endereco-do-seu-crm.com   # opcional
 
 supabase functions deploy uazapi-webhook --no-verify-jwt
 supabase functions deploy whatsapp-send
+supabase functions deploy whatsapp-config
 ```
 
 ### 3. UAZAPI
-No painel da instância, configure o webhook:
-- **URL:** `https://SEU-PROJETO.supabase.co/functions/v1/uazapi-webhook?secret=SEU_WEBHOOK_SECRET`
-- **Eventos:** mensagens
-- Se houver a opção de excluir mensagens enviadas pela API, pode ativar (evita eco). Se não houver, o sistema já descarta duplicadas pelo `message_id`.
+No CRM, abra **Ajustes** e informe o endereço do servidor e o token da instância (ficam no painel da UAZAPI).
+O CRM testa os dados, guarda o token só no servidor (tabela `whatsapp_config`, inacessível pelo navegador)
+e cadastra sozinho o webhook na UAZAPI, com um secret gerado na hora. Depois é só conectar
+com o QR Code ou com o código de pareamento pelo número.
 
 **Antes de usar de verdade:** mande uma mensagem de teste de outro celular e confira em `select raw from mensagens order by momento desc limit 1;` se nome, telefone e texto vieram certos. Se algum campo vier vazio, o ajuste é só em `_shared/uazapi.ts` (o parser já aceita as variações de nome de campo mais comuns).
 
