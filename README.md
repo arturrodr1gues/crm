@@ -8,7 +8,7 @@ Feito para uso no celular em campo, e confortável no computador.
 | Tela | Para que serve |
 |---|---|
 | **Hoje** | Agenda do dia, mensagens sem resposta, retornos marcados e propostas paradas há 3+ dias |
-| **Funil** | Kanban das 6 etapas. Arraste no computador ou toque em "Avançar" no celular |
+| **Funil** | Kanban com busca por nome, telefone ou bairro. Arraste cards e colunas (no celular, segure o card um instante) ou toque em "Avançar". Em **Gerenciar funil** você cria, renomeia, pinta, reordena e exclui colunas, define o alerta de dias parado e escolhe o que aparece em cada card. "Ganho" e "Perdido" são fixas: dá para renomear, não para excluir |
 | **Conversas** | Inbox do WhatsApp com busca e filtro de não lidas, em tempo real. O chat manda texto, emoji, áudio gravado, foto, vídeo, arquivo (até 30 MB), figurinha, contato e enquete; responde, reage, edita e apaga mensagens; mostra ✓ enviada, ✓✓ entregue e ✓✓ azul lida |
 | **Ficha do cliente** | Conversa + venda (etapa, retorno, financiamento) + compromissos + dados + conta de luz + indicações |
 | **Agenda** | Próximos 14 dias e o que ficou para trás |
@@ -27,6 +27,7 @@ supabase/
   migrations/0001_mvp.sql          tabelas, RLS, triggers, realtime, storage
   migrations/0002_whatsapp_config.sql  servidor e token da UAZAPI (só as Edge Functions leem)
   migrations/0004_chat_completo.sql    mídia, reações, enquetes, edição, exclusão e leitura
+  migrations/0005_gerenciador_funil.sql colunas editáveis do funil, ordem dos cards e conteúdo do card
   functions/_shared/uazapi.ts      tudo que é específico da UAZAPI
   functions/_shared/config.ts      lê a configuração salva pela tela de Ajustes
   functions/uazapi-webhook/        recebe mensagens
@@ -38,7 +39,7 @@ web/                               React + Tailwind (Vite)
 ## Passo a passo
 
 ### 1. Supabase
-1. Crie o projeto e rode as migrations de `supabase/migrations/` em ordem (0001 → 0004) no **SQL Editor** (ou `supabase db push`).
+1. Crie o projeto e rode as migrations de `supabase/migrations/` em ordem (0001 → 0005) no **SQL Editor** (ou `supabase db push`).
 2. Em **Authentication → Providers → Email**, crie seu usuário e **desative novos cadastros** (Allow new users to sign up = off).
 3. Libere seu acesso:
    ```sql
@@ -84,7 +85,8 @@ Prospecção fria continua sendo feita pelo seu celular, do jeito humano.
 ## Personalização
 
 - **Cores:** `web/src/index.css`, bloco `@theme`. Troque pelas cores da sua marca.
-- **Etapas, faixas de consumo e alertas:** `web/src/lib/constantes.js`.
+- **Colunas do funil:** direto no CRM, em Funil → Gerenciar funil.
+- **Faixas de consumo e alertas da tela Hoje:** `web/src/lib/constantes.js`.
 - **Respostas rápidas:** tabela `respostas_rapidas`. As que vêm prontas não falam de preço nem prazo; o que entra ali é decisão sua.
 
 ## Próximas fases (fora do MVP)

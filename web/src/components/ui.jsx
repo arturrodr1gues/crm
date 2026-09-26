@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { nomeEtapa } from "../lib/constantes";
+import { nomeEtapa, tipoEtapa, useEtapas } from "../lib/etapas";
 
 export function Modal({ titulo, onFechar, children, estreito }) {
   useEffect(() => {
@@ -95,8 +95,10 @@ export function PreviaImagem({ src, alt = "", onFechar }) {
 
 // Selo com a etapa do funil em que o lead está
 export function SeloEtapa({ etapa, grande = false }) {
-  const cor = etapa === "fechado" ? "bg-ok/15 text-ok"
-    : etapa === "perdido" ? "bg-alerta/10 text-alerta"
+  useEtapas(); // redesenha quando as colunas carregam ou mudam de nome
+  const tipo = tipoEtapa(etapa);
+  const cor = tipo === "ganho" ? "bg-ok/15 text-ok"
+    : tipo === "perdido" ? "bg-alerta/10 text-alerta"
     : "bg-sol/20 text-sol-escuro";
   return (
     <span className={`block max-w-40 truncate rounded-full font-semibold ${grande ? "px-3 py-1 text-xs" : "px-2 py-0.5 text-[11px]"} ${cor}`}>
