@@ -47,7 +47,7 @@ export default function NovoContato({ onFechar }) {
     });
 
     onFechar();
-    navegar(`/contatos/${contato.id}`);
+    navegar(`/conversas/${contato.id}`);
   }
 
   return (

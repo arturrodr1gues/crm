@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-export function Modal({ titulo, onFechar, children }) {
+export function Modal({ titulo, onFechar, children, estreito }) {
   useEffect(() => {
     const esc = (e) => e.key === "Escape" && onFechar();
     window.addEventListener("keydown", esc);
@@ -12,7 +12,7 @@ export function Modal({ titulo, onFechar, children }) {
       onClick={onFechar}>
       <div role="dialog" aria-modal="true" aria-label={titulo}
         onClick={(e) => e.stopPropagation()}
-        className="bg-superficie w-full md:max-w-lg rounded-t-2xl md:rounded-2xl max-h-[92vh] overflow-y-auto"
+        className={`bg-superficie w-full ${estreito ? "md:max-w-xs" : "md:max-w-lg"} rounded-t-2xl md:rounded-2xl max-h-[92vh] overflow-y-auto`}
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <div className="flex items-center justify-between px-5 pt-5 pb-2">
           <h2 className="text-lg font-semibold">{titulo}</h2>

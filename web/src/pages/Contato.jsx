@@ -5,59 +5,142 @@ import { ETAPAS, ETAPA_PERDIDO, FAIXAS, FINANCIAMENTO, ORIGENS, faixaPorConsumo,
 import { dataCurta, formatarTelefone, hora, nomeOuTelefone, normalizarTelefone, paraInputLocal } from "../lib/format";
 import { Campo, Entrada, Selecao, AreaTexto, BotaoPrimario, BotaoSecundario, Vazio } from "../components/ui";
 import Chat from "../components/Chat";
+import ListaConversas from "../components/ListaConversas";
+import useMidia, { TELA_LARGA } from "../lib/useMidia";
+import { usePreferencia } from "../lib/preferencias";
+import DetalhesConversa from "../components/DetalhesConversa";
 import EventoForm from "../components/EventoForm";
 
 export default function Contato() {
   const { id } = useParams();
   const [contato, setContato] = useState(null);
   const [op, setOp] = useState(null);
-  const [aba, setAba] = useState("conversa");
+  const [aba, setAba] = useState("conversa"); // celular: conversa | detalhes | dados
+  const larga = useMidia(TELA_LARGA);
+  const md = useMidia("(min-width: 768px)");
+  // Computador: painel da direita (detalhes ou ficha) e lista de conversas à esquerda. Lembra a escolha.
+  const [painel, setPainel] = usePreferencia("crm-painel-conversa", "ficha");
+  const [listaRecolhida, setListaRecolhida] = usePreferencia("crm-conversas-recolhidas", false);
+
+  // Computador: lista de todas as conversas ao lado, como no WhatsApp Web.
+  const comLista = (conteudo) => (larga ? (
+    <div className="flex h-dvh">
+      {listaRecolhida ? (
+        <div className="w-12 shrink-0 border-r border-linha bg-superficie flex flex-col items-center pt-3">
+          <button type="button" onClick={() => setListaRecolhida(false)} aria-label="Mostrar conversas" title="Mostrar conversas"
+            className="h-9 w-9 rounded-lg grid place-items-center text-tinta-suave hover:bg-fundo">
+            <IconeLista className="w-5 h-5" />
+          </button>
+        </div>
+      ) : (
+        <aside className="w-80 xl:w-96 shrink-0 border-r border-linha bg-superficie">
+          <ListaConversas lateral ativa={id} onRecolher={() => setListaRecolhida(true)} />
+        </aside>
+      )}
+      <div className="flex-1 min-w-0 h-full">{conteudo}</div>
+    </div>
+  ) : conteudo);
 
   async function carregar() {
-    const [{ data: c }, { data: o }] = await Promise.all([
-      supabase.from("contatos").select("*, indicador:contatos!contatos_indicado_por_fkey(id, nome, telefone)").eq("id", id).single(),
+    const [{ data: c, error }, { data: o }] = await Promise.all([
+      supabase.from("contatos").select("*, indicador:contatos!indicado_por(id, nome, telefone)").eq("id", id).single(),
       supabase.from("oportunidades").select("*").eq("contato_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
-    setContato(c); setOp(o);
+    if (error) console.error("erro ao carregar contato", error);
+    setContato(error ? false : c); setOp(o);
   }
 
-  useEffect(() => { carregar(); }, [id]);
+  useEffect(() => { setAba("conversa"); carregar(); }, [id]);
 
-  if (!contato) return <div className="p-6 text-tinta-suave">Carregando…</div>;
+  if (contato === false) {
+    return comLista(
+      <div className="p-6">
+        <p className="text-alerta mb-3">Não foi possível abrir essa conversa.</p>
+        <Link to="/conversas" className="underline text-tinta-suave">Voltar para Conversas</Link>
+      </div>
+    );
+  }
+  if (!contato) return comLista(<div className="p-6 text-tinta-suave">Carregando…</div>);
 
-  return (
+  // Grupo não é cliente: tem detalhes, mas não tem ficha de venda.
+  const grupo = contato.is_grupo;
+  const painelAtual = grupo && painel === "ficha" ? "detalhes" : painel;
+  const alternar = (p) => setPainel(painelAtual === p ? null : p);
+  const abrirDetalhes = () => (md ? setPainel("detalhes") : setAba("detalhes"));
+  const qual = md ? painelAtual : aba;
+  const abas = grupo
+    ? [["conversa", "Conversa"], ["detalhes", "Detalhes"]]
+    : [["conversa", "Conversa"], ["detalhes", "Detalhes"], ["dados", "Venda"]];
+
+  const etapa = op && (op.etapa === "perdido" ? ETAPA_PERDIDO.nome : ETAPAS.find((e) => e.id === op.etapa)?.nome);
+  const botaoPainel = (p, nome) => (
+    <button type="button" onClick={() => alternar(p)} aria-pressed={painelAtual === p}
+      className={`hidden md:grid h-9 px-3 rounded-lg border place-items-center text-sm font-medium ${
+        painelAtual === p ? "bg-tinta text-white border-tinta" : "border-linha hover:bg-fundo"}`}>
+      {nome}
+    </button>
+  );
+
+  return comLista(
     <div className="flex flex-col h-[calc(100dvh-4rem-env(safe-area-inset-bottom,0px))] md:h-dvh">
-      <header className="bg-superficie border-b border-linha px-4 md:px-6 py-3 flex items-center gap-3">
+      <header className="bg-superficie border-b border-linha px-4 md:px-5 py-2.5 flex items-center gap-2">
         <Link to="/conversas" className="md:hidden h-10 w-10 -ml-2 grid place-items-center text-2xl" aria-label="Voltar">‹</Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="font-semibold text-lg truncate">{nomeOuTelefone(contato)}</h1>
-          <p className="text-sm text-tinta-suave truncate">
-            {[formatarTelefone(contato.telefone), op && (op.etapa === "perdido" ? ETAPA_PERDIDO.nome : ETAPAS.find((e) => e.id === op.etapa)?.nome)].filter(Boolean).join(", ")}
-          </p>
-        </div>
-        {contato.telefone && (
-          <a href={`tel:+${contato.telefone}`} className="h-10 px-3 rounded-lg border border-linha grid place-items-center text-sm font-medium">Ligar</a>
+        {/* Tocar no nome abre os detalhes, como no WhatsApp */}
+        <button type="button" onClick={abrirDetalhes} className="min-w-0 flex-1 flex items-center gap-3 text-left">
+          <span className={`h-10 w-10 shrink-0 rounded-full grid place-items-center font-semibold ${
+            grupo ? "bg-linha text-tinta" : "bg-tinta text-white"}`}>
+            {grupo ? "👥" : (contato.nome || "?").trim().charAt(0).toUpperCase()}
+          </span>
+          <span className="min-w-0">
+            <span className="block font-semibold truncate">{grupo ? contato.nome || "Grupo sem nome" : nomeOuTelefone(contato)}</span>
+            <span className="block text-sm text-tinta-suave truncate">
+              {grupo ? "Grupo do WhatsApp" : [formatarTelefone(contato.telefone), etapa].filter(Boolean).join(", ")}
+            </span>
+          </span>
+        </button>
+        {!grupo && contato.telefone && (
+          <a href={`tel:+${contato.telefone}`} className="h-9 px-3 rounded-lg border border-linha grid place-items-center text-sm font-medium hover:bg-fundo">Ligar</a>
         )}
+        {botaoPainel("detalhes", "Detalhes")}
+        {!grupo && botaoPainel("ficha", "Ficha")}
       </header>
 
       {/* Abas no celular; lado a lado no computador */}
-      <div className="md:hidden grid grid-cols-2 bg-superficie border-b border-linha" role="tablist">
-        {[["conversa", "Conversa"], ["dados", "Dados e venda"]].map(([k, n]) => (
+      <div className={`md:hidden grid ${abas.length === 3 ? "grid-cols-3" : "grid-cols-2"} bg-superficie border-b border-linha`} role="tablist">
+        {abas.map(([k, n]) => (
           <button key={k} role="tab" aria-selected={aba === k} onClick={() => setAba(k)}
             className={`h-11 font-medium border-b-2 ${aba === k ? "border-sol text-tinta" : "border-transparent text-tinta-suave"}`}>{n}</button>
         ))}
       </div>
 
-      <div className="flex-1 min-h-0 md:grid md:grid-cols-[minmax(0,1fr)_400px] md:grid-rows-[minmax(0,1fr)]">
+      <div className={`flex-1 min-h-0 md:grid md:grid-rows-[minmax(0,1fr)] ${
+        painelAtual ? "md:grid-cols-[minmax(0,1fr)_360px]" : "md:grid-cols-[minmax(0,1fr)]"}`}>
         <div className={`h-full min-h-0 ${aba === "conversa" ? "block" : "hidden"} md:block`}>
           <Chat contato={contato} />
         </div>
-        <div className={`relative h-full overflow-y-auto overscroll-contain border-l border-linha bg-fundo ${aba === "dados" ? "block" : "hidden"} md:block`}>
-          <Ficha contato={contato} op={op} onSalvo={carregar} />
-        </div>
+        {qual && qual !== "conversa" && (
+          <div className={`relative h-full overflow-y-auto overscroll-contain border-l border-linha bg-fundo ${aba !== "conversa" ? "block" : "hidden"} md:block`}>
+            {md && (
+              <div className="sticky top-0 z-10 flex items-center justify-between h-12 px-4 bg-superficie border-b border-linha">
+                <span className="font-semibold">{qual === "detalhes" ? "Dados da conversa" : "Ficha do cliente"}</span>
+                <button type="button" onClick={() => setPainel(null)} aria-label="Fechar painel"
+                  className="h-8 w-8 -mr-2 grid place-items-center rounded-lg text-tinta-suave hover:bg-fundo text-xl">×</button>
+              </div>
+            )}
+            {qual === "detalhes"
+              ? <DetalhesConversa contato={contato} />
+              : <Ficha contato={contato} op={op} onSalvo={carregar} />}
+          </div>
+        )}
       </div>
     </div>
   );
+}
+
+function IconeLista(p) {
+  return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /><path d="M9 10h6M9 13.5h4" />
+  </svg>);
 }
 
 function Ficha({ contato, op, onSalvo }) {
@@ -292,7 +375,7 @@ function CardIndicacoes({ contato }) {
     <Card titulo="Indicações">
       {contato.indicador && (
         <p className="text-sm mb-2">
-          Indicado por <Link className="underline font-medium" to={`/contatos/${contato.indicador.id}`}>{nomeOuTelefone(contato.indicador)}</Link>
+          Indicado por <Link className="underline font-medium" to={`/conversas/${contato.indicador.id}`}>{nomeOuTelefone(contato.indicador)}</Link>
         </p>
       )}
       {indicados.length === 0 ? <Vazio>Ainda não indicou ninguém.</Vazio> : (
@@ -300,7 +383,7 @@ function CardIndicacoes({ contato }) {
           <p className="text-sm text-tinta-suave mb-1">Indicou {indicados.length} {indicados.length === 1 ? "pessoa" : "pessoas"}:</p>
           <ul className="text-sm space-y-1">
             {indicados.map((i) => (
-              <li key={i.id}><Link className="underline" to={`/contatos/${i.id}`}>{nomeOuTelefone(i)}</Link></li>
+              <li key={i.id}><Link className="underline" to={`/conversas/${i.id}`}>{nomeOuTelefone(i)}</Link></li>
             ))}
           </ul>
         </>

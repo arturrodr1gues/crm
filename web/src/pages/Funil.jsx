@@ -80,7 +80,7 @@ function Cartao({ o, idx, onMover, onArrastar }) {
   return (
     <li draggable onDragStart={() => onArrastar(o.id)} onDragEnd={() => onArrastar(null)}
       className="bg-superficie rounded-xl border border-linha p-3 cursor-grab active:cursor-grabbing">
-      <Link to={`/contatos/${c.id}`} draggable={false} className="block">
+      <Link to={`/conversas/${c.id}`} draggable={false} className="block">
         <div className="font-medium truncate">{nomeOuTelefone(c)}</div>
         <div className="text-sm text-tinta-suave mt-0.5">
           {[c.bairro, c.consumo_kwh && `${c.consumo_kwh} kWh`].filter(Boolean).join(", ") || "Sem conta de luz ainda"}

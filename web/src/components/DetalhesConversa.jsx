@@ -1,0 +1,242 @@
+import { useEffect, useRef, useState } from "react";
+import { supabase } from "../lib/supabase";
+import { dataCurta, formatarTelefone, nomeOuTelefone } from "../lib/format";
+import { tamanhoLegivel, useUrlMidia } from "../lib/whatsapp";
+import { IconeDoc, IconeFechar } from "./chat/Icones";
+
+const LINK = /https?:\/\/[^\s<>"')]+/gi;
+
+/**
+ * Dados da conversa, como no WhatsApp: contato, mídia, arquivos e links trocados.
+ * Em grupo, mostra também quem já escreveu.
+ */
+export default function DetalhesConversa({ contato }) {
+  const [aba, setAba] = useState("midia");
+  const [midias, setMidias] = useState(null);
+  const [arquivos, setArquivos] = useState(null);
+  const [links, setLinks] = useState(null);
+  const [participantes, setParticipantes] = useState([]);
+  const [aberta, setAberta] = useState(null); // índice da mídia no visualizador
+
+  useEffect(() => {
+    let ativo = true;
+    const base = (colunas) => supabase.from("mensagens").select(colunas)
+      .eq("contato_id", contato.id).eq("apagada", false).order("momento", { ascending: false });
+
+    async function carregar() {
+      const colunas = "id, tipo, texto, midia_path, midia_nome, midia_tamanho, midia_mime, momento, direcao";
+      const [m, a, l, p] = await Promise.all([
+        base(colunas).in("tipo", ["imagem", "video"]).not("midia_path", "is", null).limit(90),
+        base(colunas).eq("tipo", "documento").not("midia_path", "is", null).limit(60),
+        base("id, texto, momento, direcao").ilike("texto", "%http%").limit(100),
+        contato.is_grupo
+          ? base("autor_nome, autor_telefone").eq("direcao", "in").limit(1000)
+          : Promise.resolve({ data: [] }),
+      ]);
+      if (!ativo) return;
+      setMidias(m.data ?? []);
+      setArquivos(a.data ?? []);
+      setLinks((l.data ?? []).flatMap((x) => (x.texto.match(LINK) ?? []).map((url, i) => ({ id: `${x.id}-${i}`, url, momento: x.momento }))));
+      const porAutor = new Map();
+      for (const x of p.data ?? []) {
+        const chave = x.autor_telefone || x.autor_nome;
+        if (!chave) continue;
+        const atual = porAutor.get(chave) ?? { nome: x.autor_nome, telefone: x.autor_telefone, total: 0 };
+        atual.total += 1;
+        porAutor.set(chave, atual);
+      }
+      setParticipantes([...porAutor.values()].sort((x, y) => y.total - x.total));
+    }
+
+    carregar();
+    // Atualiza quando chega mensagem nova ou uma mídia termina de baixar.
+    let espera;
+    const canal = supabase.channel(`detalhes-${contato.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "mensagens", filter: `contato_id=eq.${contato.id}` },
+        () => { clearTimeout(espera); espera = setTimeout(carregar, 800); })
+      .subscribe();
+    return () => { ativo = false; clearTimeout(espera); supabase.removeChannel(canal); };
+  }, [contato.id]);
+
+  const abas = [
+    { id: "midia", nome: "Mídia", n: midias?.length },
+    { id: "arquivos", nome: "Arquivos", n: arquivos?.length },
+    { id: "links", nome: "Links", n: links?.length },
+  ];
+
+  return (
+    <div className="bg-fundo min-h-full">
+      <section className="bg-superficie px-4 pt-6 pb-5 text-center border-b border-linha">
+        <div className={`mx-auto h-20 w-20 rounded-full grid place-items-center text-3xl font-semibold ${
+          contato.is_grupo ? "bg-linha text-tinta" : "bg-tinta text-white"}`}>
+          {contato.is_grupo ? "👥" : (contato.nome || "?").trim().charAt(0).toUpperCase()}
+        </div>
+        <h2 className="mt-3 text-lg font-semibold break-words">{contato.is_grupo ? contato.nome || "Grupo sem nome" : nomeOuTelefone(contato)}</h2>
+        <p className="text-sm text-tinta-suave">
+          {contato.is_grupo ? "Grupo do WhatsApp" : formatarTelefone(contato.telefone) || "Sem telefone"}
+        </p>
+        {!contato.is_grupo && contato.telefone && (
+          <div className="mt-4 flex justify-center gap-2">
+            <a href={`tel:+${contato.telefone}`} className="h-9 px-3 rounded-lg border border-linha text-sm font-medium grid place-items-center">Ligar</a>
+            <a href={`https://wa.me/${contato.telefone}`} target="_blank" rel="noreferrer"
+              className="h-9 px-3 rounded-lg border border-linha text-sm font-medium grid place-items-center">Abrir no WhatsApp</a>
+          </div>
+        )}
+      </section>
+
+      {!contato.is_grupo && (contato.cidade || contato.bairro || contato.observacoes) && (
+        <section className="bg-superficie mt-2 px-4 py-3 border-y border-linha space-y-2 text-sm">
+          {(contato.cidade || contato.bairro) && (
+            <Info rotulo="Cidade">{[contato.bairro, contato.cidade].filter(Boolean).join(", ")}</Info>
+          )}
+          {contato.observacoes && <Info rotulo="Observações">{contato.observacoes}</Info>}
+        </section>
+      )}
+
+      <section className="bg-superficie mt-2 border-y border-linha">
+        <div role="tablist" className="grid grid-cols-3 border-b border-linha">
+          {abas.map((a) => (
+            <button key={a.id} role="tab" aria-selected={aba === a.id} onClick={() => setAba(a.id)}
+              className={`h-10 text-sm font-medium border-b-2 ${aba === a.id ? "border-sol text-tinta" : "border-transparent text-tinta-suave"}`}>
+              {a.nome}{a.n ? <span className="ml-1 text-xs text-tinta-suave">{a.n}</span> : null}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-2">
+          {aba === "midia" && (midias === null ? <Carregando /> : midias.length === 0 ? <Vazio>Nenhuma foto ou vídeo ainda.</Vazio> : (
+            <div className="grid grid-cols-3 gap-1">
+              {midias.map((m, i) => <Miniatura key={m.id} m={m} onClick={() => setAberta(i)} />)}
+            </div>
+          ))}
+
+          {aba === "arquivos" && (arquivos === null ? <Carregando /> : arquivos.length === 0 ? <Vazio>Nenhum arquivo ainda.</Vazio> : (
+            <ul className="divide-y divide-linha">{arquivos.map((a) => <Arquivo key={a.id} a={a} />)}</ul>
+          ))}
+
+          {aba === "links" && (links === null ? <Carregando /> : links.length === 0 ? <Vazio>Nenhum link ainda.</Vazio> : (
+            <ul className="divide-y divide-linha">
+              {links.map((l) => (
+                <li key={l.id} className="px-2 py-2">
+                  <a href={l.url} target="_blank" rel="noreferrer" className="block text-sm text-sky-700 underline truncate">{l.url}</a>
+                  <span className="text-[11px] text-tinta-suave">{dataCurta(l.momento)}</span>
+                </li>
+              ))}
+            </ul>
+          ))}
+        </div>
+      </section>
+
+      {contato.is_grupo && participantes.length > 0 && (
+        <section className="bg-superficie mt-2 border-y border-linha">
+          <h3 className="px-4 pt-3 pb-1 text-sm font-semibold">Quem já escreveu <span className="text-tinta-suave font-normal">{participantes.length}</span></h3>
+          <ul className="divide-y divide-linha">
+            {participantes.map((p) => (
+              <li key={p.telefone || p.nome} className="px-4 py-2 flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{p.nome || formatarTelefone(p.telefone)}</span>
+                  {p.nome && p.telefone && <span className="block text-xs text-tinta-suave">{formatarTelefone(p.telefone)}</span>}
+                </span>
+                <span className="text-xs text-tinta-suave shrink-0">{p.total} {p.total === 1 ? "mensagem" : "mensagens"}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {aberta !== null && midias?.[aberta] && (
+        <Visualizador itens={midias} indice={aberta} onMudar={setAberta} onFechar={() => setAberta(null)} />
+      )}
+    </div>
+  );
+}
+
+const Info = ({ rotulo, children }) => (
+  <div><div className="text-xs text-tinta-suave">{rotulo}</div><div className="whitespace-pre-wrap">{children}</div></div>
+);
+const Carregando = () => <p className="text-sm text-tinta-suave p-3">Carregando…</p>;
+const Vazio = ({ children }) => <p className="text-sm text-tinta-suave p-3 text-center">{children}</p>;
+
+function Miniatura({ m, onClick }) {
+  const url = useUrlMidia(m.midia_path);
+  return (
+    <button type="button" onClick={onClick} aria-label={m.tipo === "video" ? "Abrir vídeo" : "Abrir foto"}
+      className="relative aspect-square overflow-hidden rounded-md bg-linha">
+      {url && (m.tipo === "video"
+        ? <video src={`${url}#t=0.1`} muted preload="metadata" playsInline className="w-full h-full object-cover pointer-events-none" />
+        : <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />)}
+      {m.tipo === "video" && (
+        <span className="absolute inset-0 grid place-items-center">
+          <span className="h-8 w-8 rounded-full bg-black/50 text-white grid place-items-center">
+            <svg viewBox="0 0 24 24" className="w-4 h-4 ml-0.5" fill="currentColor"><path d="M7 4.5v15l13-7.5z" /></svg>
+          </span>
+        </span>
+      )}
+    </button>
+  );
+}
+
+function Arquivo({ a }) {
+  const url = useUrlMidia(a.midia_path, a.midia_nome || "arquivo");
+  return (
+    <li>
+      <a href={url ?? undefined} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-2 py-2 hover:bg-fundo rounded-md">
+        <IconeDoc className="w-7 h-7 shrink-0 text-tinta-suave" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">{a.midia_nome || "Arquivo"}</span>
+          <span className="block text-[11px] text-tinta-suave">
+            {[tamanhoLegivel(a.midia_tamanho), dataCurta(a.momento), a.direcao === "out" ? "enviado" : "recebido"].filter(Boolean).join(" · ")}
+          </span>
+        </span>
+      </a>
+    </li>
+  );
+}
+
+/** Foto ou vídeo em tela cheia, com setas para navegar (teclado também: ← → e Esc). */
+function Visualizador({ itens, indice, onMudar, onFechar }) {
+  const m = itens[indice];
+  const url = useUrlMidia(m.midia_path);
+  const download = useUrlMidia(m.midia_path, m.midia_nome || (m.tipo === "video" ? "video.mp4" : "foto.jpg"));
+  const fechar = useRef(null);
+
+  // Lista vem da mais nova para a mais antiga: "anterior" = mais antiga.
+  const anterior = indice < itens.length - 1 ? () => onMudar(indice + 1) : null;
+  const proxima = indice > 0 ? () => onMudar(indice - 1) : null;
+
+  useEffect(() => {
+    fechar.current?.focus();
+    const tecla = (e) => {
+      if (e.key === "Escape") onFechar();
+      if (e.key === "ArrowLeft") anterior?.();
+      if (e.key === "ArrowRight") proxima?.();
+    };
+    window.addEventListener("keydown", tecla);
+    return () => window.removeEventListener("keydown", tecla);
+  }, [indice]);
+
+  const seta = "absolute top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white text-2xl grid place-items-center";
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Visualizar mídia" className="fixed inset-0 z-50 bg-black/90 flex flex-col">
+      <div className="flex items-center gap-3 px-4 h-14 text-white">
+        <span className="flex-1 min-w-0 text-sm">
+          <span className="block">{m.direcao === "out" ? "Você" : "Recebida"} · {dataCurta(m.momento)}</span>
+          {m.texto && <span className="block truncate text-white/70">{m.texto}</span>}
+        </span>
+        {download && <a href={download} className="h-9 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-sm grid place-items-center">Baixar</a>}
+        <button ref={fechar} type="button" onClick={onFechar} aria-label="Fechar" className="h-9 w-9 rounded-lg hover:bg-white/10 grid place-items-center">
+          <IconeFechar className="w-5 h-5" />
+        </button>
+      </div>
+      <div className="relative flex-1 min-h-0 grid place-items-center p-4" onClick={(e) => e.target === e.currentTarget && onFechar()}>
+        {url && (m.tipo === "video"
+          ? <video key={url} src={url} controls autoPlay playsInline className="max-h-full max-w-full rounded-lg" />
+          : <img src={url} alt={m.texto || "Foto"} className="max-h-full max-w-full object-contain rounded-lg" />)}
+        {anterior && <button type="button" onClick={anterior} aria-label="Mais antiga" className={`${seta} left-3`}>‹</button>}
+        {proxima && <button type="button" onClick={proxima} aria-label="Mais recente" className={`${seta} right-3`}>›</button>}
+      </div>
+      <p className="text-center text-xs text-white/50 pb-3">{itens.length - indice} de {itens.length}</p>
+    </div>
+  );
+}
