@@ -35,33 +35,36 @@ export default function VisualizadorMidia({ itens, indice = 0, onMudar, onFechar
   // (que abre o menu no toque longo). Aqui eles param.
   const isolar = (e) => e.stopPropagation();
 
-  const seta = "absolute top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white text-2xl grid place-items-center";
+  const seta = "absolute top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/40 hover:bg-black/60 text-white text-2xl grid place-items-center";
 
+  // Janela centralizada (não a tela inteira); clicar no fundo escuro fecha.
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={m.tipo === "video" ? "Vídeo" : "Foto"}
-      onClick={isolar} onTouchStart={isolar} onTouchEnd={isolar} onTouchMove={isolar} onContextMenu={isolar}
-      className="fixed inset-0 z-[100] bg-black/90 flex flex-col"
-      style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-      <div className="flex items-center gap-3 px-4 h-14 shrink-0 text-white">
+    <div onClick={(e) => { isolar(e); if (e.target === e.currentTarget) onFechar(); }}
+      onTouchStart={isolar} onTouchEnd={isolar} onTouchMove={isolar} onContextMenu={isolar}
+      className="fixed inset-0 z-[100] bg-black/60 grid place-items-center p-4 md:p-8">
+      <div role="dialog" aria-modal="true" aria-label={m.tipo === "video" ? "Vídeo" : "Foto"}
+        className="w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl bg-tinta shadow-2xl overflow-hidden">
+      <div className="flex items-center gap-3 pl-4 pr-2 h-12 shrink-0 text-white border-b border-white/10">
         <span className="flex-1 min-w-0 text-sm">
           <span className="block">{m.direcao === "out" ? "Você" : "Recebida"} · {dataCurta(m.momento)} {hora(m.momento)}</span>
           {m.texto && <span className="block truncate text-white/70">{m.texto}</span>}
         </span>
-        {download && <a href={download} className="h-9 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-sm grid place-items-center">Baixar</a>}
+        {download && <a href={download} className="h-8 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-sm grid place-items-center">Baixar</a>}
         <button ref={fechar} type="button" onClick={onFechar} aria-label="Fechar"
-          className="h-10 w-10 rounded-lg bg-white/10 hover:bg-white/20 grid place-items-center">
+          className="h-9 w-9 rounded-lg hover:bg-white/10 grid place-items-center">
           <IconeFechar className="w-5 h-5" />
         </button>
       </div>
-      <div className="relative flex-1 min-h-0 grid place-items-center p-4" onClick={(e) => e.target === e.currentTarget && onFechar()}>
-        {!url ? <span className="text-white/70 text-sm">Carregando…</span>
+      <div className="relative flex-1 min-h-0 grid place-items-center p-3 bg-black/30">
+        {!url ? <span className="text-white/70 text-sm py-16">Carregando…</span>
           : m.tipo === "video"
-            ? <video key={url} src={url} controls autoPlay playsInline className="max-h-full max-w-full rounded-lg" />
-            : <img src={url} alt={m.texto || "Foto"} className="max-h-full max-w-full object-contain rounded-lg" />}
-        {anterior && <button type="button" onClick={anterior} aria-label="Mais antiga" className={`${seta} left-3`}>‹</button>}
-        {proxima && <button type="button" onClick={proxima} aria-label="Mais recente" className={`${seta} right-3`}>›</button>}
+            ? <video key={url} src={url} controls autoPlay playsInline className="max-h-[calc(80vh-6rem)] max-w-full rounded-lg" />
+            : <img src={url} alt={m.texto || "Foto"} className="max-h-[calc(80vh-6rem)] max-w-full object-contain rounded-lg" />}
+        {anterior && <button type="button" onClick={anterior} aria-label="Mais antiga" className={`${seta} left-2`}>‹</button>}
+        {proxima && <button type="button" onClick={proxima} aria-label="Mais recente" className={`${seta} right-2`}>›</button>}
       </div>
-      {itens.length > 1 && <p className="text-center text-xs text-white/50 pb-3">{itens.length - indice} de {itens.length}</p>}
+      {itens.length > 1 && <p className="text-center text-xs text-white/50 py-2 shrink-0">{itens.length - indice} de {itens.length}</p>}
+      </div>
     </div>,
     document.body,
   );

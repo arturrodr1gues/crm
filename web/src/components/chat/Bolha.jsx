@@ -141,7 +141,8 @@ function Conteudo({ m, minha, meta, onVotar }) {
   switch (m.tipo) {
     case "imagem":
     case "video":
-      return <><Midia m={m} minha={minha} />{legenda("px-1.5 pt-1 pb-0.5")}</>;
+      // Legenda com a largura da foto: quebra linha em vez de esticar a bolha
+      return <><Midia m={m} minha={minha} />{legenda(`${LARGURA_MIDIA} px-1.5 pt-1 pb-0.5`)}</>;
     case "figurinha":
     case "audio":
       return <Midia m={m} minha={minha} />;
