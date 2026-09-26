@@ -33,7 +33,7 @@ export default function Layout({ children }) {
   return (
     <div className="min-h-full md:flex">
       {/* Menu lateral no computador */}
-      <aside className="hidden md:flex md:flex-col w-56 shrink-0 bg-tinta text-white p-4 gap-1 sticky top-0 h-screen">
+      <aside className="hidden md:flex md:flex-col w-56 shrink-0 bg-tinta text-white p-4 gap-1 sticky top-0 h-dvh">
         <div className="flex items-center gap-2 px-2 mb-6">
           <span className="h-3 w-3 rounded-full bg-sol" />
           <span className="font-bold text-lg">CRM Solar</span>
