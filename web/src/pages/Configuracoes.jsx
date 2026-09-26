@@ -81,6 +81,7 @@ function Servidor({ info, ocupado, onSalvar }) {
   const [editando, setEditando] = useState(!info?.configurado);
   const [url, setUrl] = useState(info?.url ?? "");
   const [token, setToken] = useState("");
+  const [verToken, setVerToken] = useState(false);
 
   useEffect(() => {
     setEditando(!info?.configurado);
@@ -118,9 +119,17 @@ function Servidor({ info, ocupado, onSalvar }) {
         </Campo>
         <Campo rotulo="Token da instância"
           dica={info?.configurado ? "Deixe em branco para manter o token atual." : undefined}>
-          <Entrada type="password" required={!info?.configurado} value={token}
-            onChange={(e) => setToken(e.target.value)} autoComplete="off"
-            placeholder={info?.configurado ? `•••• ${info.tokenFinal}` : ""} />
+          <div className="relative">
+            {/* "new-password" impede o navegador de preencher com a senha salva do login do CRM. */}
+            <Entrada type={verToken ? "text" : "password"} name="uazapi-token" required={!info?.configurado}
+              value={token} onChange={(e) => setToken(e.target.value)} autoComplete="new-password"
+              data-lpignore="true" data-1p-ignore="true" spellCheck={false} className="pr-20"
+              placeholder={info?.configurado ? `•••• ${info.tokenFinal}` : ""} />
+            <button type="button" onClick={() => setVerToken((v) => !v)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 mt-0.5 h-9 px-2 text-sm underline text-tinta-suave">
+              {verToken ? "Ocultar" : "Mostrar"}
+            </button>
+          </div>
         </Campo>
         <div className="flex gap-3">
           <BotaoPrimario type="submit" disabled={ocupado}>{ocupado ? "Testando…" : "Salvar e testar"}</BotaoPrimario>
@@ -236,7 +245,7 @@ function Webhook({ webhook, ocupado, onRefazer }) {
     <Cartao titulo="Recebimento de mensagens">
       {webhook?.ok ? (
         <p className="text-sm mb-4">
-          <span className="text-ok font-semibold">Ativo.</span> Mensagens que chegam no WhatsApp aparecem em Conversas.
+          <span className="text-ok font-semibold">Ativo.</span> Mensagens de conversas e grupos aparecem em Conversas.
         </p>
       ) : (
         <p className="text-sm mb-4">

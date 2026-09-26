@@ -89,7 +89,7 @@ function Dia({ titulo, itens, onAlternar, onAbrir, alerta, comData }) {
               </div>
             </button>
             {a.contato && (
-              <Link to={`/contatos/${a.contato.id}`} className="text-sm underline text-tinta-suave shrink-0">
+              <Link to={`/conversas/${a.contato.id}`} className="text-sm underline text-tinta-suave shrink-0">
                 {nomeOuTelefone(a.contato).split(" ")[0]}
               </Link>
             )}

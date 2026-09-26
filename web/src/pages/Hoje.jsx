@@ -20,7 +20,7 @@ export default function Hoje() {
         .lte("proximo_followup", fimDoDia(agora).toISOString())
         .not("etapa", "in", "(fechado,perdido)").order("proximo_followup"),
       supabase.from("contatos").select("id, nome, telefone, nao_lidas, ultima_mensagem, ultima_mensagem_em")
-        .gt("nao_lidas", 0).order("ultima_mensagem_em", { ascending: false }),
+        .gt("nao_lidas", 0).eq("is_grupo", false).order("ultima_mensagem_em", { ascending: false }),
       supabase.from("oportunidades").select("id, etapa, etapa_desde, contato:contatos(id, nome, telefone)")
         .eq("etapa", "proposta").lte("etapa_desde", limiteProposta).order("etapa_desde"),
       supabase.from("oportunidades").select("id", { count: "exact", head: true }).eq("etapa", "novo"),
@@ -73,7 +73,7 @@ export default function Hoje() {
                 <div className={`min-w-0 flex-1 ${a.concluido ? "line-through text-tinta-suave" : ""}`}>
                   <div className="truncate">{a.titulo}</div>
                   <div className="text-sm text-tinta-suave truncate">
-                    {nomeTipo(a.tipo)}{a.contato && <>, <Link className="underline" to={`/contatos/${a.contato.id}`}>{nomeOuTelefone(a.contato)}</Link></>}
+                    {nomeTipo(a.tipo)}{a.contato && <>, <Link className="underline" to={`/conversas/${a.contato.id}`}>{nomeOuTelefone(a.contato)}</Link></>}
                     {a.local && <>, {a.local}</>}
                   </div>
                 </div>
@@ -139,7 +139,7 @@ function Secao({ titulo, acao, children }) {
 function LinhaContato({ id, titulo, sub, lado }) {
   return (
     <li>
-      <Link to={`/contatos/${id}`} className="flex items-center gap-3 py-3">
+      <Link to={`/conversas/${id}`} className="flex items-center gap-3 py-3">
         <div className="min-w-0 flex-1">
           <div className="font-medium truncate">{titulo}</div>
           {sub && <div className="text-sm text-tinta-suave truncate">{sub}</div>}

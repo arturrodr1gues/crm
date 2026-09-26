@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import NovoContato from "./NovoContato";
+import { usePreferencia } from "../lib/preferencias";
 
 const itens = [
   { to: "/", nome: "Hoje", icone: IconeSol },
@@ -15,10 +16,13 @@ export default function Layout({ children }) {
   const [naoLidas, setNaoLidas] = useState(0);
   const [novoAberto, setNovoAberto] = useState(false);
   const { pathname } = useLocation();
-  const naFichaDoCliente = pathname.startsWith("/contatos/");
+  const naFichaDoCliente = /^\/conversas\/[^/]+/.test(pathname);
+  // Menu do computador recolhido: só os ícones.
+  const [recolhido, setRecolhido] = usePreferencia("crm-menu-recolhido", false);
 
   async function contar() {
-    const { data } = await supabase.from("contatos").select("nao_lidas").gt("nao_lidas", 0);
+    // Grupos ficam fora do contador para não esconder as mensagens de clientes.
+    const { data } = await supabase.from("contatos").select("nao_lidas").gt("nao_lidas", 0).eq("is_grupo", false);
     setNaoLidas((data ?? []).reduce((s, c) => s + c.nao_lidas, 0));
   }
 
@@ -33,25 +37,34 @@ export default function Layout({ children }) {
   return (
     <div className="min-h-full md:flex">
       {/* Menu lateral no computador */}
-      <aside className="hidden md:flex md:flex-col w-56 shrink-0 bg-tinta text-white p-4 gap-1 sticky top-0 h-screen">
-        <div className="flex items-center gap-2 px-2 mb-6">
-          <span className="h-3 w-3 rounded-full bg-sol" />
-          <span className="font-bold text-lg">CRM Solar</span>
+      <aside className={`hidden md:flex md:flex-col ${recolhido ? "w-16 px-2" : "w-56 px-4"} shrink-0 bg-tinta text-white py-4 gap-1 sticky top-0 h-screen`}>
+        <div className={`flex items-center gap-2 mb-6 ${recolhido ? "flex-col" : "px-2"}`}>
+          <span className="h-3 w-3 shrink-0 rounded-full bg-sol" />
+          {!recolhido && <span className="font-bold text-lg flex-1">CRM Solar</span>}
+          <button type="button" onClick={() => setRecolhido(!recolhido)}
+            aria-label={recolhido ? "Expandir menu" : "Recolher menu"} title={recolhido ? "Expandir menu" : "Recolher menu"}
+            className="h-8 w-8 grid place-items-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <IconeRecolher className={`w-5 h-5 ${recolhido ? "rotate-180" : ""}`} />
+          </button>
         </div>
         {itens.map((i) => (
-          <NavLink key={i.to} to={i.to} end
+          <NavLink key={i.to} to={i.to} end={i.to === "/"} title={recolhido ? i.nome : undefined} aria-label={i.nome}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 h-11 rounded-lg ${isActive ? "bg-white/15 font-semibold" : "text-white/75 hover:bg-white/10"}`}>
-            <i.icone className="w-5 h-5" />
-            <span className="flex-1">{i.nome}</span>
-            {i.badge && naoLidas > 0 && <Badge n={naoLidas} />}
+              `relative flex items-center gap-3 h-11 rounded-lg ${recolhido ? "justify-center" : "px-3"} ${
+                isActive ? "bg-white/15 font-semibold" : "text-white/75 hover:bg-white/10"}`}>
+            <i.icone className="w-5 h-5 shrink-0" />
+            {!recolhido && <span className="flex-1">{i.nome}</span>}
+            {i.badge && naoLidas > 0 && (recolhido
+              ? <span className="absolute -top-1 -right-1"><Badge n={naoLidas} /></span>
+              : <Badge n={naoLidas} />)}
           </NavLink>
         ))}
-        <button onClick={() => setNovoAberto(true)}
-          className="mt-4 h-11 rounded-lg bg-sol text-tinta font-semibold">
-          Novo contato
+        <button onClick={() => setNovoAberto(true)} aria-label="Novo contato" title={recolhido ? "Novo contato" : undefined}
+          className={`mt-4 h-11 rounded-lg bg-sol text-tinta font-semibold ${recolhido ? "text-2xl font-light" : ""}`}>
+          {recolhido ? "+" : "Novo contato"}
         </button>
-        <button onClick={() => supabase.auth.signOut()} className="mt-auto text-white/60 text-sm text-left px-3">
+        <button onClick={() => supabase.auth.signOut()} title={recolhido ? "Sair" : undefined}
+          className={`mt-auto text-white/60 text-sm ${recolhido ? "text-center" : "text-left px-3"}`}>
           Sair
         </button>
       </aside>
@@ -69,7 +82,7 @@ export default function Layout({ children }) {
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-superficie border-t border-linha grid grid-cols-5"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         {itens.map((i) => (
-          <NavLink key={i.to} to={i.to} end
+          <NavLink key={i.to} to={i.to} end={i.to === "/"}
             className={({ isActive }) =>
               `relative flex flex-col items-center justify-center h-16 text-xs ${isActive ? "text-tinta font-semibold" : "text-tinta-suave"}`}>
             {({ isActive }) => (
@@ -97,6 +110,11 @@ function Badge({ n }) {
   );
 }
 
+function IconeRecolher(p) {
+  return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M16 10l-2 2 2 2" />
+  </svg>);
+}
 function IconeSol(p) {
   return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}>
     <circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />

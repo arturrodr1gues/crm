@@ -9,12 +9,14 @@ Feito para uso no celular em campo, e confortável no computador.
 |---|---|
 | **Hoje** | Agenda do dia, mensagens sem resposta, retornos marcados e propostas paradas há 3+ dias |
 | **Funil** | Kanban das 6 etapas. Arraste no computador ou toque em "Avançar" no celular |
-| **Conversas** | Inbox do WhatsApp com busca e filtro de não lidas, em tempo real |
+| **Conversas** | Inbox do WhatsApp com busca e filtro de não lidas, em tempo real. O chat manda texto, emoji, áudio gravado, foto, vídeo, arquivo (até 30 MB), figurinha, contato e enquete; responde, reage, edita e apaga mensagens; mostra ✓ enviada, ✓✓ entregue e ✓✓ azul lida |
 | **Ficha do cliente** | Conversa + venda (etapa, retorno, financiamento) + compromissos + dados + conta de luz + indicações |
 | **Agenda** | Próximos 14 dias e o que ficou para trás |
 
 Automatismos:
 - Mensagem nova de número desconhecido cria o contato e a oportunidade em "Novo contato".
+- Grupos do WhatsApp aparecem em Conversas (com o nome de quem escreveu) e dá para responder por ali.
+  Ficam fora do funil, da tela Hoje e do contador de não lidas.
 - Ao informar o consumo pela primeira vez, a faixa é preenchida e a etapa passa para "Conta de luz recebida".
 - Toda mudança de etapa fica registrada em `historico_etapas` (base para as métricas da fase 3).
 
@@ -24,10 +26,11 @@ Automatismos:
 supabase/
   migrations/0001_mvp.sql          tabelas, RLS, triggers, realtime, storage
   migrations/0002_whatsapp_config.sql  servidor e token da UAZAPI (só as Edge Functions leem)
+  migrations/0004_chat_completo.sql    mídia, reações, enquetes, edição, exclusão e leitura
   functions/_shared/uazapi.ts      tudo que é específico da UAZAPI
   functions/_shared/config.ts      lê a configuração salva pela tela de Ajustes
   functions/uazapi-webhook/        recebe mensagens
-  functions/whatsapp-send/         envia mensagens (com travas de proteção)
+  functions/whatsapp-send/         envia mensagens, reage, edita, apaga e marca como lida (com travas de proteção)
   functions/whatsapp-config/       conectar/desconectar o WhatsApp e cadastrar o webhook
 web/                               React + Tailwind (Vite)
 ```
@@ -35,7 +38,7 @@ web/                               React + Tailwind (Vite)
 ## Passo a passo
 
 ### 1. Supabase
-1. Crie o projeto e rode `supabase/migrations/0001_mvp.sql` no **SQL Editor** (ou `supabase db push`).
+1. Crie o projeto e rode as migrations de `supabase/migrations/` em ordem (0001 → 0004) no **SQL Editor** (ou `supabase db push`).
 2. Em **Authentication → Providers → Email**, crie seu usuário e **desative novos cadastros** (Allow new users to sign up = off).
 3. Libere seu acesso:
    ```sql

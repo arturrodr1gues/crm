@@ -12,7 +12,7 @@ export default function BuscaContato({ valor, onEscolher, rotulo = "Contato", pl
     if (t.length < 2) { setResultados([]); return; }
     const id = setTimeout(async () => {
       const digitos = soDigitos(t);
-      let q = supabase.from("contatos").select("id, nome, telefone").limit(6);
+      let q = supabase.from("contatos").select("id, nome, telefone").eq("is_grupo", false).limit(6);
       q = digitos.length >= 4 ? q.ilike("telefone", `%${digitos}%`) : q.ilike("nome", `%${t}%`);
       const { data } = await q;
       setResultados(data ?? []);

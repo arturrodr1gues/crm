@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
@@ -56,11 +56,18 @@ values ('${sessao.user.id}', 'Artur');`}
         <Route path="/" element={<Hoje />} />
         <Route path="/funil" element={<Funil />} />
         <Route path="/conversas" element={<Conversas />} />
-        <Route path="/contatos/:id" element={<Contato />} />
+        <Route path="/conversas/:id" element={<Contato />} />
+        {/* Endereço antigo: links salvos continuam funcionando */}
+        <Route path="/contatos/:id" element={<RedirecionaContato />} />
         <Route path="/agenda" element={<Agenda />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Layout>
   );
+}
+
+function RedirecionaContato() {
+  const { id } = useParams();
+  return <Navigate to={`/conversas/${id}`} replace />;
 }
