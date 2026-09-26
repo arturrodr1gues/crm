@@ -8,10 +8,10 @@ import VisualizadorMidia from "./VisualizadorMidia";
 const LINK = /https?:\/\/[^\s<>"')]+/gi;
 
 /**
- * Dados da conversa, como no WhatsApp: contato, mídia, arquivos e links trocados.
- * Em grupo, mostra também quem já escreveu.
+ * Dados da conversa, como no WhatsApp: contato, ficha do cliente (passada em `children`),
+ * mídia, arquivos e links trocados. Em grupo, mostra também quem já escreveu.
  */
-export default function DetalhesConversa({ contato }) {
+export default function DetalhesConversa({ contato, children }) {
   const [aba, setAba] = useState("midia");
   const [midias, setMidias] = useState(null);
   const [arquivos, setArquivos] = useState(null);
@@ -78,21 +78,14 @@ export default function DetalhesConversa({ contato }) {
         </p>
         {!contato.is_grupo && contato.telefone && (
           <div className="mt-4 flex justify-center gap-2">
-            <a href={`tel:+${contato.telefone}`} className="h-9 px-3 rounded-lg border border-linha text-sm font-medium grid place-items-center">Ligar</a>
             <a href={`https://wa.me/${contato.telefone}`} target="_blank" rel="noreferrer"
               className="h-9 px-3 rounded-lg border border-linha text-sm font-medium grid place-items-center">Abrir no WhatsApp</a>
           </div>
         )}
       </section>
 
-      {!contato.is_grupo && (contato.cidade || contato.bairro || contato.observacoes) && (
-        <section className="bg-superficie mt-2 px-4 py-3 border-y border-linha space-y-2 text-sm">
-          {(contato.cidade || contato.bairro) && (
-            <Info rotulo="Cidade">{[contato.bairro, contato.cidade].filter(Boolean).join(", ")}</Info>
-          )}
-          {contato.observacoes && <Info rotulo="Observações">{contato.observacoes}</Info>}
-        </section>
-      )}
+      {/* Ficha do cliente (venda, agenda, dados, indicações) entra aqui, entre o contato e as mídias */}
+      {children}
 
       <section className="bg-superficie mt-2 border-y border-linha">
         <div role="tablist" className="grid grid-cols-3 border-b border-linha">
@@ -152,9 +145,6 @@ export default function DetalhesConversa({ contato }) {
   );
 }
 
-const Info = ({ rotulo, children }) => (
-  <div><div className="text-xs text-tinta-suave">{rotulo}</div><div className="whitespace-pre-wrap">{children}</div></div>
-);
 const Carregando = () => <p className="text-sm text-tinta-suave p-3">Carregando…</p>;
 const Vazio = ({ children }) => <p className="text-sm text-tinta-suave p-3 text-center">{children}</p>;
 

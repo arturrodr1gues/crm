@@ -17,11 +17,11 @@ export default function Contato() {
   const { id } = useParams();
   const [contato, setContato] = useState(null);
   const [op, setOp] = useState(null);
-  const [aba, setAba] = useState("conversa"); // celular: conversa | detalhes | dados
+  const [aba, setAba] = useState("conversa"); // celular: conversa | detalhes
   const larga = useMidia(TELA_LARGA);
   const md = useMidia("(min-width: 768px)");
-  // Computador: painel da direita (detalhes ou ficha) e lista de conversas à esquerda. Lembra a escolha.
-  const [painel, setPainel] = usePreferencia("crm-painel-conversa", "ficha");
+  // Computador: painel de detalhes à direita e lista de conversas à esquerda. Lembra a escolha.
+  const [painel, setPainel] = usePreferencia("crm-painel-conversa", "detalhes");
   const [listaRecolhida, setListaRecolhida] = usePreferencia("crm-conversas-recolhidas", false);
   const config = useAtendimentoConfig();
   const agora = useAgora();
@@ -84,25 +84,14 @@ export default function Contato() {
   }
   if (!contato) return comLista(<div className="p-6 text-tinta-suave">Carregando…</div>);
 
-  // Grupo não é cliente: tem detalhes, mas não tem ficha de venda.
+  // Um painel só: detalhes da conversa com a ficha do cliente dentro (grupo não tem ficha).
   const grupo = contato.is_grupo;
-  const painelAtual = grupo && painel === "ficha" ? "detalhes" : painel;
-  const alternar = (p) => setPainel(painelAtual === p ? null : p);
+  const painelAberto = painel !== null; // preferência antiga "ficha" também conta como aberto
   const abrirDetalhes = () => (md ? setPainel("detalhes") : setAba("detalhes"));
-  const qual = md ? painelAtual : aba;
-  const abas = grupo
-    ? [["conversa", "Conversa"], ["detalhes", "Detalhes"]]
-    : [["conversa", "Conversa"], ["detalhes", "Detalhes"], ["dados", "Venda"]];
+  const mostrarPainel = md ? painelAberto : aba === "detalhes";
 
   const etapa = op && (op.etapa === "perdido" ? ETAPA_PERDIDO.nome : ETAPAS.find((e) => e.id === op.etapa)?.nome);
   const { sla } = estadoAtendimento(contato, config, agora);
-  const botaoPainel = (p, nome) => (
-    <button type="button" onClick={() => alternar(p)} aria-pressed={painelAtual === p}
-      className={`hidden md:grid h-9 px-3 rounded-lg border place-items-center text-sm font-medium ${
-        painelAtual === p ? "bg-tinta text-white border-tinta" : "border-linha hover:bg-fundo"}`}>
-      {nome}
-    </button>
-  );
 
   return comLista(
     <div className="flex flex-col h-full">
@@ -130,38 +119,38 @@ export default function Contato() {
           className="h-9 px-3 rounded-lg border border-linha grid place-items-center text-sm font-medium hover:bg-fundo">
           {contato.conversa_fechada ? "Reabrir" : "Encerrar"}
         </button>
-        {!grupo && contato.telefone && (
-          <a href={`tel:+${contato.telefone}`} className="h-9 px-3 rounded-lg border border-linha grid place-items-center text-sm font-medium hover:bg-fundo">Ligar</a>
-        )}
-        {botaoPainel("detalhes", "Detalhes")}
-        {!grupo && botaoPainel("ficha", "Ficha")}
+        <button type="button" onClick={() => setPainel(painelAberto ? null : "detalhes")} aria-pressed={painelAberto}
+          className={`hidden md:grid h-9 px-3 rounded-lg border place-items-center text-sm font-medium ${
+            painelAberto ? "bg-tinta text-white border-tinta" : "border-linha hover:bg-fundo"}`}>
+          Detalhes
+        </button>
       </header>
 
       {/* Abas no celular; lado a lado no computador */}
-      <div className={`md:hidden grid ${abas.length === 3 ? "grid-cols-3" : "grid-cols-2"} bg-superficie border-b border-linha`} role="tablist">
-        {abas.map(([k, n]) => (
+      <div className="md:hidden grid grid-cols-2 bg-superficie border-b border-linha" role="tablist">
+        {[["conversa", "Conversa"], ["detalhes", "Detalhes"]].map(([k, n]) => (
           <button key={k} role="tab" aria-selected={aba === k} onClick={() => setAba(k)}
             className={`h-11 font-medium border-b-2 ${aba === k ? "border-sol text-tinta" : "border-transparent text-tinta-suave"}`}>{n}</button>
         ))}
       </div>
 
       <div className={`flex-1 min-h-0 md:grid md:grid-rows-[minmax(0,1fr)] ${
-        painelAtual ? "md:grid-cols-[minmax(0,1fr)_360px]" : "md:grid-cols-[minmax(0,1fr)]"}`}>
+        painelAberto ? "md:grid-cols-[minmax(0,1fr)_380px]" : "md:grid-cols-[minmax(0,1fr)]"}`}>
         <div className={`h-full min-h-0 ${aba === "conversa" ? "block" : "hidden"} md:block`}>
           <Chat contato={contato} etapa={grupo ? null : op?.etapa} />
         </div>
-        {qual && qual !== "conversa" && (
-          <div className={`relative h-full overflow-y-auto overscroll-contain border-l border-linha bg-fundo ${aba !== "conversa" ? "block" : "hidden"} md:block`}>
+        {mostrarPainel && (
+          <div className={`relative h-full overflow-y-auto overscroll-contain border-l border-linha bg-fundo ${aba === "detalhes" ? "block" : "hidden"} md:block`}>
             {md && (
               <div className="sticky top-0 z-10 flex items-center justify-between h-12 px-4 bg-superficie border-b border-linha">
-                <span className="font-semibold">{qual === "detalhes" ? "Dados da conversa" : "Ficha do cliente"}</span>
+                <span className="font-semibold">Detalhes</span>
                 <button type="button" onClick={() => setPainel(null)} aria-label="Fechar painel"
                   className="h-8 w-8 -mr-2 grid place-items-center rounded-lg text-tinta-suave hover:bg-fundo text-xl">×</button>
               </div>
             )}
-            {qual === "detalhes"
-              ? <DetalhesConversa contato={contato} />
-              : <Ficha contato={contato} op={op} onSalvo={carregar} />}
+            <DetalhesConversa contato={contato}>
+              {!grupo && <Ficha contato={contato} op={op} onSalvo={carregar} />}
+            </DetalhesConversa>
           </div>
         )}
       </div>
