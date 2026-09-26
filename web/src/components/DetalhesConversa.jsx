@@ -1,16 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { dataCurta, formatarTelefone, nomeOuTelefone } from "../lib/format";
 import { tamanhoLegivel, useUrlMidia } from "../lib/whatsapp";
-import { IconeDoc, IconeFechar } from "./chat/Icones";
+import { IconeDoc } from "./chat/Icones";
+import VisualizadorMidia from "./VisualizadorMidia";
 
 const LINK = /https?:\/\/[^\s<>"')]+/gi;
 
 /**
- * Dados da conversa, como no WhatsApp: contato, mídia, arquivos e links trocados.
- * Em grupo, mostra também quem já escreveu.
+ * Dados da conversa, como no WhatsApp: contato, ficha do cliente (passada em `children`),
+ * mídia, arquivos e links trocados. Em grupo, mostra também quem já escreveu.
  */
-export default function DetalhesConversa({ contato }) {
+export default function DetalhesConversa({ contato, children }) {
   const [aba, setAba] = useState("midia");
   const [midias, setMidias] = useState(null);
   const [arquivos, setArquivos] = useState(null);
@@ -77,21 +78,14 @@ export default function DetalhesConversa({ contato }) {
         </p>
         {!contato.is_grupo && contato.telefone && (
           <div className="mt-4 flex justify-center gap-2">
-            <a href={`tel:+${contato.telefone}`} className="h-9 px-3 rounded-lg border border-linha text-sm font-medium grid place-items-center">Ligar</a>
             <a href={`https://wa.me/${contato.telefone}`} target="_blank" rel="noreferrer"
               className="h-9 px-3 rounded-lg border border-linha text-sm font-medium grid place-items-center">Abrir no WhatsApp</a>
           </div>
         )}
       </section>
 
-      {!contato.is_grupo && (contato.cidade || contato.bairro || contato.observacoes) && (
-        <section className="bg-superficie mt-2 px-4 py-3 border-y border-linha space-y-2 text-sm">
-          {(contato.cidade || contato.bairro) && (
-            <Info rotulo="Cidade">{[contato.bairro, contato.cidade].filter(Boolean).join(", ")}</Info>
-          )}
-          {contato.observacoes && <Info rotulo="Observações">{contato.observacoes}</Info>}
-        </section>
-      )}
+      {/* Ficha do cliente (venda, agenda, dados, indicações) entra aqui, entre o contato e as mídias */}
+      {children}
 
       <section className="bg-superficie mt-2 border-y border-linha">
         <div role="tablist" className="grid grid-cols-3 border-b border-linha">
@@ -145,15 +139,12 @@ export default function DetalhesConversa({ contato }) {
       )}
 
       {aberta !== null && midias?.[aberta] && (
-        <Visualizador itens={midias} indice={aberta} onMudar={setAberta} onFechar={() => setAberta(null)} />
+        <VisualizadorMidia itens={midias} indice={aberta} onMudar={setAberta} onFechar={() => setAberta(null)} />
       )}
     </div>
   );
 }
 
-const Info = ({ rotulo, children }) => (
-  <div><div className="text-xs text-tinta-suave">{rotulo}</div><div className="whitespace-pre-wrap">{children}</div></div>
-);
 const Carregando = () => <p className="text-sm text-tinta-suave p-3">Carregando…</p>;
 const Vazio = ({ children }) => <p className="text-sm text-tinta-suave p-3 text-center">{children}</p>;
 
@@ -190,53 +181,5 @@ function Arquivo({ a }) {
         </span>
       </a>
     </li>
-  );
-}
-
-/** Foto ou vídeo em tela cheia, com setas para navegar (teclado também: ← → e Esc). */
-function Visualizador({ itens, indice, onMudar, onFechar }) {
-  const m = itens[indice];
-  const url = useUrlMidia(m.midia_path);
-  const download = useUrlMidia(m.midia_path, m.midia_nome || (m.tipo === "video" ? "video.mp4" : "foto.jpg"));
-  const fechar = useRef(null);
-
-  // Lista vem da mais nova para a mais antiga: "anterior" = mais antiga.
-  const anterior = indice < itens.length - 1 ? () => onMudar(indice + 1) : null;
-  const proxima = indice > 0 ? () => onMudar(indice - 1) : null;
-
-  useEffect(() => {
-    fechar.current?.focus();
-    const tecla = (e) => {
-      if (e.key === "Escape") onFechar();
-      if (e.key === "ArrowLeft") anterior?.();
-      if (e.key === "ArrowRight") proxima?.();
-    };
-    window.addEventListener("keydown", tecla);
-    return () => window.removeEventListener("keydown", tecla);
-  }, [indice]);
-
-  const seta = "absolute top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white text-2xl grid place-items-center";
-
-  return (
-    <div role="dialog" aria-modal="true" aria-label="Visualizar mídia" className="fixed inset-0 z-50 bg-black/90 flex flex-col">
-      <div className="flex items-center gap-3 px-4 h-14 text-white">
-        <span className="flex-1 min-w-0 text-sm">
-          <span className="block">{m.direcao === "out" ? "Você" : "Recebida"} · {dataCurta(m.momento)}</span>
-          {m.texto && <span className="block truncate text-white/70">{m.texto}</span>}
-        </span>
-        {download && <a href={download} className="h-9 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-sm grid place-items-center">Baixar</a>}
-        <button ref={fechar} type="button" onClick={onFechar} aria-label="Fechar" className="h-9 w-9 rounded-lg hover:bg-white/10 grid place-items-center">
-          <IconeFechar className="w-5 h-5" />
-        </button>
-      </div>
-      <div className="relative flex-1 min-h-0 grid place-items-center p-4" onClick={(e) => e.target === e.currentTarget && onFechar()}>
-        {url && (m.tipo === "video"
-          ? <video key={url} src={url} controls autoPlay playsInline className="max-h-full max-w-full rounded-lg" />
-          : <img src={url} alt={m.texto || "Foto"} className="max-h-full max-w-full object-contain rounded-lg" />)}
-        {anterior && <button type="button" onClick={anterior} aria-label="Mais antiga" className={`${seta} left-3`}>‹</button>}
-        {proxima && <button type="button" onClick={proxima} aria-label="Mais recente" className={`${seta} right-3`}>›</button>}
-      </div>
-      <p className="text-center text-xs text-white/50 pb-3">{itens.length - indice} de {itens.length}</p>
-    </div>
   );
 }

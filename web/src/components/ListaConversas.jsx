@@ -1,52 +1,91 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { nomeOuTelefone, quando, soDigitos } from "../lib/format";
+import { estadoAtendimento, useAgora, useAtendimentoConfig } from "../lib/atendimento";
+import { usePreferencia } from "../lib/preferencias";
 import { SeloEtapa } from "./ui";
+import { SeloFollowup, SeloSla } from "./SelosAtendimento";
+
+const COLUNAS = "id, nome, telefone, ultima_mensagem, ultima_mensagem_em, nao_lidas, is_grupo, " +
+  "conversa_fechada, aguardando_resposta_desde, aguardando_cliente_desde, oportunidades(etapa, created_at)";
 
 /**
- * Lista de conversas com busca e filtro de não lidas, em tempo real.
+ * Lista de conversas em tempo real: abas Em aberto / Fechadas, busca e filtros
+ * (não lidas, SLA crítico, follow-up).
  * `lateral`: versão compacta com rolagem própria, para ficar ao lado do chat no computador.
  * `onRecolher`: mostra o botão que esconde a lista.
  */
 export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
   const [lista, setLista] = useState(null);
   const [busca, setBusca] = useState("");
-  const [soNaoLidas, setSoNaoLidas] = useState(false);
+  const [aba, setAba] = usePreferencia("crm-conversas-aba", "abertas"); // abertas | fechadas
+  const [filtro, setFiltro] = useState("todas"); // todas | nao_lidas | sla | followup
+  const [contagem, setContagem] = useState({ sla: 0, followup: 0 });
+  const config = useAtendimentoConfig();
+  const agora = useAgora();
+
+  // A partir de quando a espera vira SLA crítico / follow-up
+  const limiteSla = new Date(agora - config.sla_resposta_min * 60_000).toISOString();
+  const limiteFollowup = new Date(agora - config.followup_horas * 3_600_000).toISOString();
+  const soClientesAbertos = (q) => q.eq("conversa_fechada", false).eq("is_grupo", false);
 
   async function carregar() {
-    let q = supabase.from("contatos")
-      .select("id, nome, telefone, ultima_mensagem, ultima_mensagem_em, nao_lidas, is_grupo, oportunidades(etapa, created_at)")
+    let q = supabase.from("contatos").select(COLUNAS)
       .not("ultima_mensagem_em", "is", null)
-      .order("ultima_mensagem_em", { ascending: false })
+      .eq("conversa_fechada", aba === "fechadas")
       .limit(100);
     const t = busca.trim();
     if (t) {
       const d = soDigitos(t);
       q = d.length >= 4 ? q.ilike("telefone", `%${d}%`) : q.ilike("nome", `%${t}%`);
     }
-    if (soNaoLidas) q = q.gt("nao_lidas", 0);
-    const { data } = await q;
+    const f = aba === "abertas" ? filtro : "todas";
+    if (f === "nao_lidas") q = q.gt("nao_lidas", 0);
+    if (f === "sla") q = q.eq("is_grupo", false).lt("aguardando_resposta_desde", limiteSla);
+    if (f === "followup") q = q.eq("is_grupo", false).lt("aguardando_cliente_desde", limiteFollowup);
+    // No SLA, quem espera há mais tempo vem primeiro.
+    q = f === "sla" ? q.order("aguardando_resposta_desde", { ascending: true })
+      : q.order("ultima_mensagem_em", { ascending: false });
+
+    const [{ data }, sla, followup] = await Promise.all([
+      q,
+      soClientesAbertos(supabase.from("contatos").select("id", { count: "exact", head: true }))
+        .lt("aguardando_resposta_desde", limiteSla),
+      soClientesAbertos(supabase.from("contatos").select("id", { count: "exact", head: true }))
+        .lt("aguardando_cliente_desde", limiteFollowup),
+    ]);
     setLista(data ?? []);
+    setContagem({ sla: sla.count ?? 0, followup: followup.count ?? 0 });
   }
 
+  // Recarrega ao mudar filtro/busca e a cada minuto (os prazos de SLA e follow-up andam sozinhos).
   useEffect(() => {
     const id = setTimeout(carregar, 200);
     return () => clearTimeout(id);
-  }, [busca, soNaoLidas]);
+  }, [busca, aba, filtro, agora, config.sla_resposta_min, config.followup_horas]);
 
+  // Tempo real: o canal fica aberto e sempre chama a versão atual de carregar (com os filtros de agora).
+  const recarregar = useRef(carregar);
+  recarregar.current = carregar;
   useEffect(() => {
     const canal = supabase.channel(`lista-conversas-${lateral ? "lateral" : "pagina"}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "contatos" }, () => carregar())
+      .on("postgres_changes", { event: "*", schema: "public", table: "contatos" }, () => recarregar.current())
       .subscribe();
-    return () => supabase.removeChannel(canal);
-  }, [busca, soNaoLidas]);
+    return () => { supabase.removeChannel(canal); };
+  }, [lateral]);
 
   const campo = lateral ? "h-10 text-sm" : "h-12";
+  const filtros = [
+    ["todas", "Todas"],
+    ["nao_lidas", "Não lidas"],
+    ["sla", "SLA crítico", contagem.sla, "bg-alerta text-white"],
+    ["followup", "Follow-up", contagem.followup, "bg-sky-100 text-sky-800"],
+  ];
 
   return (
     <div className={lateral ? "flex flex-col h-full min-h-0" : ""}>
-      <div className={lateral ? "px-3 pt-4 pb-3 border-b border-linha" : ""}>
+      <div className={lateral ? "px-3 pt-4 pb-2 border-b border-linha" : "mb-3"}>
         <div className={`flex items-center justify-between ${lateral ? "mb-3 px-1" : "mb-4"}`}>
           <h1 className={lateral ? "text-xl font-bold" : "text-3xl font-bold"}>Conversas</h1>
           {onRecolher && (
@@ -58,52 +97,81 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
             </button>
           )}
         </div>
-        <div className={`flex gap-2 ${lateral ? "" : "mb-4"}`}>
-          <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou telefone"
-            aria-label="Buscar conversa"
-            className={`flex-1 min-w-0 px-3 rounded-lg border border-linha ${lateral ? "bg-fundo" : "bg-superficie"} ${campo}`} />
-          <button onClick={() => setSoNaoLidas(!soNaoLidas)} aria-pressed={soNaoLidas}
-            className={`px-3 rounded-lg border font-medium ${campo} ${soNaoLidas ? "bg-tinta text-white border-tinta" : "bg-superficie border-linha"}`}>
-            Não lidas
-          </button>
+
+        {/* Abas: em aberto / fechadas */}
+        <div role="tablist" aria-label="Situação da conversa" className="grid grid-cols-2 p-1 mb-2 rounded-lg bg-fundo border border-linha">
+          {[["abertas", "Em aberto"], ["fechadas", "Fechadas"]].map(([k, n]) => (
+            <button key={k} type="button" role="tab" aria-selected={aba === k} onClick={() => setAba(k)}
+              className={`${lateral ? "h-8 text-sm" : "h-9"} rounded-md font-medium ${aba === k ? "bg-superficie shadow-sm text-tinta" : "text-tinta-suave"}`}>
+              {n}
+            </button>
+          ))}
         </div>
+
+        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou telefone"
+          aria-label="Buscar conversa"
+          className={`w-full px-3 rounded-lg border border-linha ${lateral ? "bg-fundo" : "bg-superficie"} ${campo}`} />
+
+        {aba === "abertas" && (
+          <div className="flex gap-1.5 overflow-x-auto pt-2 pb-0.5">
+            {filtros.map(([k, n, qtd, corQtd]) => (
+              <button key={k} type="button" onClick={() => setFiltro(k)} aria-pressed={filtro === k}
+                className={`shrink-0 h-8 px-3 rounded-full border text-[13px] font-medium flex items-center gap-1.5 ${
+                  filtro === k ? "bg-tinta text-white border-tinta" : "bg-superficie border-linha text-tinta"}`}>
+                {n}
+                {qtd > 0 && <span className={`min-w-5 h-5 px-1 rounded-full text-[11px] font-bold grid place-items-center ${corQtd}`}>{qtd}</span>}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className={lateral ? "flex-1 min-h-0 overflow-y-auto" : ""}>
         {!lista ? <p className="text-tinta-suave p-4">Carregando…</p> : lista.length === 0 ? (
           <p className="text-tinta-suave py-8 px-4 text-center text-sm">
-            {busca || soNaoLidas ? "Nenhuma conversa encontrada." : "As conversas e grupos do WhatsApp aparecem aqui assim que chegar uma mensagem."}
+            {busca ? "Nenhuma conversa encontrada."
+              : aba === "fechadas" ? "Nenhuma conversa encerrada. Use \"Encerrar\" no topo da conversa quando o atendimento terminar."
+              : filtro === "sla" ? "Nenhum cliente esperando além do SLA. 👏"
+              : filtro === "followup" ? "Nenhum follow-up pendente."
+              : filtro === "nao_lidas" ? "Nenhuma conversa não lida."
+              : "As conversas e grupos do WhatsApp aparecem aqui assim que chegar uma mensagem."}
           </p>
         ) : (
           <ul className={lateral ? "divide-y divide-linha" : "bg-superficie rounded-2xl border border-linha divide-y divide-linha"}>
-            {lista.map((c) => (
-              <li key={c.id}>
-                <Link to={`/conversas/${c.id}`} aria-current={c.id === ativa ? "page" : undefined}
-                  className={`flex items-center gap-3 ${lateral ? "px-3 py-2.5" : "px-4 py-3"} ${
-                    c.id === ativa ? "bg-fundo" : lateral ? "hover:bg-fundo/60" : ""}`}>
-                  <div className={`${lateral ? "h-10 w-10" : "h-11 w-11"} shrink-0 rounded-full grid place-items-center font-semibold ${
-                    c.is_grupo ? "bg-linha text-tinta" : "bg-tinta text-white"}`}>
-                    {c.is_grupo ? <IconeGrupo className="w-5 h-5" /> : (c.nome || "?").trim().charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`truncate ${lateral ? "text-[15px]" : ""} ${c.nao_lidas ? "font-semibold" : "font-medium"}`}>{nomeOuTelefone(c)}</span>
-                      {c.is_grupo && <span className="shrink-0 text-[11px] px-1.5 rounded bg-fundo border border-linha text-tinta-suave">Grupo</span>}
+            {lista.map((c) => {
+              const { sla, followup } = estadoAtendimento(c, config, agora);
+              return (
+                <li key={c.id}>
+                  <Link to={`/conversas/${c.id}`} aria-current={c.id === ativa ? "page" : undefined}
+                    className={`flex items-center gap-3 ${lateral ? "px-3 py-2.5" : "px-4 py-3"} ${
+                      c.id === ativa ? "bg-fundo" : lateral ? "hover:bg-fundo/60" : ""} ${sla?.critico ? "border-l-4 border-alerta" : ""}`}>
+                    <div className={`${lateral ? "h-10 w-10" : "h-11 w-11"} shrink-0 rounded-full grid place-items-center font-semibold ${
+                      c.is_grupo ? "bg-linha text-tinta" : "bg-tinta text-white"}`}>
+                      {c.is_grupo ? <IconeGrupo className="w-5 h-5" /> : (c.nome || "?").trim().charAt(0).toUpperCase()}
                     </div>
-                    <div className={`text-sm truncate ${c.nao_lidas ? "text-tinta" : "text-tinta-suave"}`}>{c.ultima_mensagem}</div>
-                  </div>
-                  <div className="shrink-0 flex flex-col items-end gap-1">
-                    <div className="flex items-center gap-1.5">
-                      {c.nao_lidas > 0 && (
-                        <span className="min-w-5 h-5 px-1.5 rounded-full bg-sol text-tinta text-[11px] font-bold grid place-items-center">{c.nao_lidas}</span>
-                      )}
-                      <span className="text-xs text-tinta-suave">{quando(c.ultima_mensagem_em)}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`truncate ${lateral ? "text-[15px]" : ""} ${c.nao_lidas ? "font-semibold" : "font-medium"}`}>{nomeOuTelefone(c)}</span>
+                        {c.is_grupo && <span className="shrink-0 text-[11px] px-1.5 rounded bg-fundo border border-linha text-tinta-suave">Grupo</span>}
+                      </div>
+                      <div className={`text-sm truncate ${c.nao_lidas ? "text-tinta" : "text-tinta-suave"}`}>{c.ultima_mensagem}</div>
                     </div>
-                    <EtapaDoFunil ops={c.oportunidades} />
-                  </div>
-                </Link>
-              </li>
-            ))}
+                    <div className="shrink-0 flex flex-col items-end gap-1">
+                      <div className="flex items-center gap-1.5">
+                        {c.nao_lidas > 0 && (
+                          <span className="min-w-5 h-5 px-1.5 rounded-full bg-sol text-tinta text-[11px] font-bold grid place-items-center">{c.nao_lidas}</span>
+                        )}
+                        <span className="text-xs text-tinta-suave">{quando(c.ultima_mensagem_em)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {sla ? <SeloSla sla={sla} compacto /> : followup && <SeloFollowup followup={followup} />}
+                        <EtapaDoFunil ops={c.oportunidades} />
+                      </div>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

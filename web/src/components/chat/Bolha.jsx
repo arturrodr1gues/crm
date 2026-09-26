@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatarTelefone, hora } from "../../lib/format";
 import { rotuloMensagem, tamanhoLegivel, useUrlMidia } from "../../lib/whatsapp";
 import { IconeDoc, IconeMenu, Tiques } from "./Icones";
+import VisualizadorMidia from "../VisualizadorMidia";
 
 const TIPOS_MIDIA = ["imagem", "video", "audio", "documento", "figurinha"];
 // Largura fixa das mídias, como no WhatsApp.
@@ -140,7 +141,8 @@ function Conteudo({ m, minha, meta, onVotar }) {
   switch (m.tipo) {
     case "imagem":
     case "video":
-      return <><Midia m={m} minha={minha} />{legenda("px-1.5 pt-1 pb-0.5")}</>;
+      // Legenda com a largura da foto: quebra linha em vez de esticar a bolha
+      return <><Midia m={m} minha={minha} />{legenda(`${LARGURA_MIDIA} px-1.5 pt-1 pb-0.5`)}</>;
     case "figurinha":
     case "audio":
       return <Midia m={m} minha={minha} />;
@@ -161,6 +163,7 @@ function Midia({ m, minha }) {
   const url = useUrlMidia(m._url_local ? null : m.midia_path);
   const download = useUrlMidia(m.tipo === "documento" && !m._url_local ? m.midia_path : null, m.midia_nome || "arquivo");
   const src = m._url_local ?? url;
+  const [aberta, setAberta] = useState(false);
 
   if (!src && TIPOS_MIDIA.includes(m.tipo) && m.tipo !== "documento") {
     // Mídia recebida é copiada para o Storage logo depois que chega.
@@ -175,11 +178,13 @@ function Midia({ m, minha }) {
 
   switch (m.tipo) {
     case "imagem":
-      return (
-        <a href={src} target="_blank" rel="noreferrer" className={`block ${LARGURA_MIDIA}`}>
+      // Abre em tela cheia aqui mesmo, sem sair do CRM (nova aba "prendia" o app no celular).
+      return (<>
+        <button type="button" onClick={() => setAberta(true)} aria-label="Ver foto" className={`block ${LARGURA_MIDIA} cursor-zoom-in`}>
           <img src={src} alt={m.texto || "Foto"} loading="lazy" className="block w-full h-auto max-h-64 md:max-h-72 object-cover rounded-lg" />
-        </a>
-      );
+        </button>
+        {aberta && <VisualizadorMidia itens={[m]} onFechar={() => setAberta(false)} />}
+      </>);
     case "video":
       return <video src={src} controls preload="metadata" playsInline className={`block ${LARGURA_MIDIA} max-h-64 md:max-h-72 rounded-lg bg-black`} />;
     case "figurinha":

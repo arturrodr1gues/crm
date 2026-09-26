@@ -63,9 +63,10 @@ Deno.serve(async (req) => {
     .eq("whatsapp_chatid", m.chatId).maybeSingle();
 
   if (!contato && m.telefone && !m.isGroup) {
+    // Celular pode estar cadastrado com o 9 e chegar sem ele (ou o contrário).
     ({ data: contato } = await supabase
       .from("contatos").select("id, nome, telefone, whatsapp_chatid")
-      .eq("telefone", m.telefone).maybeSingle());
+      .in("telefone", variantesTelefone(m.telefone)).limit(1).maybeSingle());
   }
 
   // 2) Cria a conversa nova (e oportunidade, se foi um cliente quem chamou; grupo fica fora do funil)
@@ -135,6 +136,19 @@ Deno.serve(async (req) => {
 
   return ok();
 });
+
+/**
+ * O mesmo celular brasileiro com e sem o nono dígito. O WhatsApp mantém números
+ * antigos no formato de 8 dígitos (55 84 9619-7515); no CRM se digita com o 9.
+ * Só vale para celular (9 seguido de 6 a 9), como a função telefone_chave do banco.
+ */
+function variantesTelefone(t: string) {
+  const sem9 = t.match(/^55([1-9]\d)([6-9]\d{7})$/);
+  if (sem9) return [t, `55${sem9[1]}9${sem9[2]}`];
+  const com9 = t.match(/^55([1-9]\d)9([6-9]\d{7})$/);
+  if (com9) return [t, `55${com9[1]}${com9[2]}`];
+  return [t];
+}
 
 function extensao(mime: string, nome: string | null) {
   const doNome = nome?.match(/\.([\w]{1,8})$/)?.[1];

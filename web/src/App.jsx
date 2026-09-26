@@ -8,6 +8,7 @@ import Funil from "./pages/Funil";
 import Conversas from "./pages/Conversas";
 import Contato from "./pages/Contato";
 import Agenda from "./pages/Agenda";
+import Dashboard from "./pages/Dashboard";
 import Configuracoes from "./pages/Configuracoes";
 
 export default function App() {
@@ -60,6 +61,7 @@ values ('${sessao.user.id}', 'Artur');`}
         {/* Endereço antigo: links salvos continuam funcionando */}
         <Route path="/contatos/:id" element={<RedirecionaContato />} />
         <Route path="/agenda" element={<Agenda />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { dataCurta, formatarTelefone, nomeOuTelefone } from "../lib/format";
 import { chamarWhatsapp, subirMidia, tipoDoArquivo } from "../lib/whatsapp";
 import { SeloEtapa } from "./ui";
+import { duracaoCurta, estadoAtendimento, useAgora, useAtendimentoConfig } from "../lib/atendimento";
 import Bolha from "./chat/Bolha";
 import Compositor from "./chat/Compositor";
 import { AcoesMensagem, EnviarContato, NovaEnquete, PreviaArquivo } from "./chat/Modais";
@@ -20,6 +21,11 @@ export default function Chat({ contato, etapa }) {
   const [acoes, setAcoes] = useState(null);       // mensagem com o menu aberto
   const [modal, setModal] = useState(null);       // { tipo: "arquivo" | "contato" | "enquete", ... }
   const [destacada, setDestacada] = useState(null);
+  const [sugestao, setSugestao] = useState(null);  // texto que vai para o campo (follow-up)
+  const config = useAtendimentoConfig();
+  const agora = useAgora();
+  const { followup } = estadoAtendimento(contato, config, agora);
+  const modeloFollowup = respostas.find((r) => r.id === config.followup_resposta_id);
   const fim = useRef(null);
   const vistoPendente = useRef(null);
 
@@ -229,6 +235,21 @@ export default function Chat({ contato, etapa }) {
       )}
       </div>
 
+      {/* Follow-up: mandamos a última mensagem e o cliente ainda não respondeu */}
+      {followup && (
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-sol/15 border-t border-sol/40 text-sm">
+          <span className="flex-1 min-w-48">
+            <strong className="font-semibold">Follow-up:</strong> sem resposta do cliente há {duracaoCurta(followup.minutos)}.
+          </span>
+          {modeloFollowup && (
+            <button type="button" onClick={() => setSugestao({ texto: modeloFollowup.texto, em: Date.now() })}
+              className="h-8 px-3 rounded-lg bg-sol text-tinta text-[13px] font-semibold">
+              Usar mensagem de follow-up
+            </button>
+          )}
+        </div>
+      )}
+
       {erro && (
         <div className="flex items-start gap-2 px-3 py-2 bg-superficie border-t border-linha">
           <p className="flex-1 text-alerta text-sm">{erro}</p>
@@ -236,7 +257,8 @@ export default function Chat({ contato, etapa }) {
         </div>
       )}
 
-      <Compositor grupo={contato.is_grupo} respostas={respostas} respondendo={respondendo} autorDe={autorDe}
+      <Compositor contato={contato} grupo={contato.is_grupo} respostas={respostas} respondendo={respondendo} autorDe={autorDe}
+        sugestao={sugestao}
         onCancelarResposta={() => setRespondendo(null)}
         onTexto={enviarTexto} onArquivo={arquivoEscolhido} onFigurinha={enviarFigurinha}
         onContato={() => setModal({ tipo: "contato" })} onEnquete={() => setModal({ tipo: "enquete" })} />

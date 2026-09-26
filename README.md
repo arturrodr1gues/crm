@@ -9,7 +9,7 @@ Feito para uso no celular em campo, e confortável no computador.
 |---|---|
 | **Hoje** | Agenda do dia, mensagens sem resposta, retornos marcados e propostas paradas há 3+ dias |
 | **Funil** | Kanban das 6 etapas. Arraste no computador ou toque em "Avançar" no celular |
-| **Conversas** | Inbox do WhatsApp com busca e filtro de não lidas, em tempo real. O chat manda texto, emoji, áudio gravado, foto, vídeo, arquivo (até 30 MB), figurinha, contato e enquete; responde, reage, edita e apaga mensagens; mostra ✓ enviada, ✓✓ entregue e ✓✓ azul lida |
+| **Conversas** | Inbox do WhatsApp em tempo real, com abas Em aberto/Fechadas e filtros de não lidas, SLA crítico (cliente sem resposta além do prazo, padrão 1 h) e follow-up (cliente sem retorno, padrão 12 h). O chat manda texto, emoji, áudio gravado, foto, vídeo, arquivo (até 30 MB), figurinha, contato e enquete; responde, reage, edita e apaga mensagens; mostra ✓ enviada, ✓✓ entregue e ✓✓ azul lida |
 | **Ficha do cliente** | Conversa + venda (etapa, retorno, financiamento) + compromissos + dados + conta de luz + indicações |
 | **Agenda** | Próximos 14 dias e o que ficou para trás |
 
@@ -27,6 +27,8 @@ supabase/
   migrations/0001_mvp.sql          tabelas, RLS, triggers, realtime, storage
   migrations/0002_whatsapp_config.sql  servidor e token da UAZAPI (só as Edge Functions leem)
   migrations/0004_chat_completo.sql    mídia, reações, enquetes, edição, exclusão e leitura
+  migrations/0005_atendimento.sql      conversas abertas/fechadas, SLA, follow-up e mensagens rápidas com nome
+  migrations/0007_dashboard.sql        função dashboard_kpis (indicadores de leads, atendimento e SLA)
   functions/_shared/uazapi.ts      tudo que é específico da UAZAPI
   functions/_shared/config.ts      lê a configuração salva pela tela de Ajustes
   functions/uazapi-webhook/        recebe mensagens

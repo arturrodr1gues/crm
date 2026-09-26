@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { BotaoPrimario, BotaoSecundario, Campo, Entrada } from "../components/ui";
+import ConfigAtendimento from "../components/ConfigAtendimento";
 
 // Enquanto o QR Code está na tela, consulta o status até o celular conectar.
 const INTERVALO_STATUS_MS = 3000;
@@ -64,6 +65,8 @@ export default function Configuracoes() {
             onRefazer={() => executar("webhook")} />
         </>
       )}
+
+      <ConfigAtendimento />
     </div>
   );
 }
