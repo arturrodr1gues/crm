@@ -10,6 +10,8 @@ import useMidia, { TELA_LARGA } from "../lib/useMidia";
 import { usePreferencia } from "../lib/preferencias";
 import DetalhesConversa from "../components/DetalhesConversa";
 import EventoForm from "../components/EventoForm";
+import { estadoAtendimento, useAgora, useAtendimentoConfig } from "../lib/atendimento";
+import { SeloSla } from "../components/SelosAtendimento";
 
 export default function Contato() {
   const { id } = useParams();
@@ -21,6 +23,8 @@ export default function Contato() {
   // Computador: painel da direita (detalhes ou ficha) e lista de conversas à esquerda. Lembra a escolha.
   const [painel, setPainel] = usePreferencia("crm-painel-conversa", "ficha");
   const [listaRecolhida, setListaRecolhida] = usePreferencia("crm-conversas-recolhidas", false);
+  const config = useAtendimentoConfig();
+  const agora = useAgora();
 
   // Computador: lista de todas as conversas ao lado, como no WhatsApp Web.
   const comLista = (conteudo) => (larga ? (
@@ -52,6 +56,24 @@ export default function Contato() {
 
   useEffect(() => { setAba("conversa"); carregar(); }, [id]);
 
+  // Mantém SLA, follow-up e conversa aberta/fechada em dia enquanto a tela está aberta.
+  useEffect(() => {
+    const canal = supabase.channel(`contato-${id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "contatos", filter: `id=eq.${id}` },
+        ({ new: c }) => setContato((atual) => (atual ? { ...atual, ...c } : atual)))
+      .subscribe();
+    return () => { supabase.removeChannel(canal); };
+  }, [id]);
+
+  // Encerrar tira a conversa da aba "Em aberto" (e do SLA/follow-up). Se o cliente escrever, ela reabre sozinha.
+  async function alternarEncerrada() {
+    const fechar = !contato.conversa_fechada;
+    const patch = { conversa_fechada: fechar, conversa_fechada_em: fechar ? new Date().toISOString() : null };
+    setContato((c) => ({ ...c, ...patch }));
+    const { error } = await supabase.from("contatos").update(patch).eq("id", contato.id);
+    if (error) setContato((c) => ({ ...c, conversa_fechada: !fechar }));
+  }
+
   if (contato === false) {
     return comLista(
       <div className="p-6">
@@ -73,6 +95,7 @@ export default function Contato() {
     : [["conversa", "Conversa"], ["detalhes", "Detalhes"], ["dados", "Venda"]];
 
   const etapa = op && (op.etapa === "perdido" ? ETAPA_PERDIDO.nome : ETAPAS.find((e) => e.id === op.etapa)?.nome);
+  const { sla } = estadoAtendimento(contato, config, agora);
   const botaoPainel = (p, nome) => (
     <button type="button" onClick={() => alternar(p)} aria-pressed={painelAtual === p}
       className={`hidden md:grid h-9 px-3 rounded-lg border place-items-center text-sm font-medium ${
@@ -97,6 +120,15 @@ export default function Contato() {
               {grupo ? "Grupo do WhatsApp" : [formatarTelefone(contato.telefone), etapa].filter(Boolean).join(", ")}
             </span>
           </span>
+        </button>
+        {contato.conversa_fechada && (
+          <span className="shrink-0 hidden sm:inline text-[11px] px-2 py-0.5 rounded-full bg-linha text-tinta-suave font-medium">Encerrada</span>
+        )}
+        {sla && <SeloSla sla={sla} />}
+        <button type="button" onClick={alternarEncerrada}
+          title={contato.conversa_fechada ? "Voltar para as conversas em aberto" : "Mover para as conversas fechadas"}
+          className="h-9 px-3 rounded-lg border border-linha grid place-items-center text-sm font-medium hover:bg-fundo">
+          {contato.conversa_fechada ? "Reabrir" : "Encerrar"}
         </button>
         {!grupo && contato.telefone && (
           <a href={`tel:+${contato.telefone}`} className="h-9 px-3 rounded-lg border border-linha grid place-items-center text-sm font-medium hover:bg-fundo">Ligar</a>

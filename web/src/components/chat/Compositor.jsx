@@ -5,13 +5,14 @@ import {
   IconeLixo, IconeMic, IconeMusica, IconePessoa,
 } from "./Icones";
 import { rotuloMensagem } from "../../lib/whatsapp";
+import { aplicarVariaveis } from "../../lib/atendimento";
 
 /**
  * Barra de escrever: texto com emojis, anexos (foto, vídeo, arquivo, áudio, figurinha,
  * contato, enquete), gravação de áudio e a citação da mensagem que está sendo respondida.
  */
 export default function Compositor({
-  grupo, respostas, respondendo, autorDe, onCancelarResposta,
+  contato, grupo, respostas, respondendo, autorDe, onCancelarResposta, sugestao,
   onTexto, onArquivo, onFigurinha, onContato, onEnquete,
 }) {
   const [texto, setTexto] = useState("");
@@ -21,6 +22,13 @@ export default function Compositor({
   const entradas = { midia: useRef(null), documento: useRef(null), audio: useRef(null), figurinha: useRef(null) };
 
   useEffect(() => { if (respondendo) campo.current?.focus(); }, [respondendo]);
+
+  // Mensagem rápida (ou sugestão de follow-up) já com o nome do contato, pronta para revisar e enviar.
+  function usarModelo(texto) {
+    setTexto(aplicarVariaveis(texto, contato));
+    requestAnimationFrame(() => campo.current?.focus());
+  }
+  useEffect(() => { if (sugestao) usarModelo(sugestao.texto); }, [sugestao]);
 
   // Campo começa com 2 linhas e cresce com o texto até 4; depois disso rola por dentro.
   useEffect(() => {
@@ -101,7 +109,7 @@ export default function Compositor({
         {respostas.length > 0 && !respondendo && !gravando && (
           <div className="flex gap-2 overflow-x-auto pb-2">
             {respostas.map((r) => (
-              <button key={r.id} type="button" onClick={() => setTexto(r.texto)}
+              <button key={r.id} type="button" onClick={() => usarModelo(r.texto)} title={aplicarVariaveis(r.texto, contato)}
                 className="shrink-0 text-[13px] px-3 h-8 rounded-full border border-linha bg-fundo">
                 {r.atalho}
               </button>
