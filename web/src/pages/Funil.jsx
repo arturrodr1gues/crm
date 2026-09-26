@@ -358,7 +358,7 @@ function ConteudoCartao({ o, etapa, proxima, campos, onAvancar }) {
 
   return (
     <>
-      <Link to={`/conversas/${c.id}`} draggable={false} className="block"
+      <Link to={`/funil/${c.id}`} draggable={false} className="block"
         onClick={(e) => { if (Date.now() - ultimoArraste < 300) e.preventDefault(); }}>
         <div className="font-medium truncate">{nomeOuTelefone(c)}</div>
         {(linha || semDados) && (

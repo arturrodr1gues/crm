@@ -10,6 +10,7 @@ Feito para uso no celular em campo, e confortável no computador.
 | **Hoje** | Agenda do dia, mensagens sem resposta, retornos marcados e propostas paradas há 3+ dias |
 | **Funil** | Kanban com busca por nome, telefone ou bairro. Arraste cards e colunas (no celular, segure o card um instante) ou toque em "Avançar". Em **Gerenciar funil** você cria, renomeia, pinta, reordena e exclui colunas, define o alerta de dias parado e escolhe o que aparece em cada card. "Ganho" e "Perdido" são fixas: dá para renomear, não para excluir |
 | **Conversas** | Inbox do WhatsApp com busca e filtro de não lidas, em tempo real. O chat manda texto, emoji, áudio gravado, foto, vídeo, arquivo (até 30 MB), figurinha, contato e enquete; responde, reage, edita e apaga mensagens; mostra ✓ enviada, ✓✓ entregue e ✓✓ azul lida |
+| **Página do lead** | Aberta ao clicar no card do funil: resumo, caminho no funil, venda, compromissos, dados e indicações, com botão para abrir a conversa |
 | **Ficha do cliente** | Conversa + venda (etapa, retorno, financiamento) + compromissos + dados + conta de luz + indicações |
 | **Agenda** | Próximos 14 dias e o que ficou para trás |
 

@@ -145,9 +145,10 @@ function IconeLista(p) {
   </svg>);
 }
 
-function Ficha({ contato, op, onSalvo }) {
+// Também usada na página do lead (Funil → card), com as seções lado a lado no computador
+export function Ficha({ contato, op, onSalvo, className = "p-4 space-y-4" }) {
   return (
-    <div className="p-4 space-y-4">
+    <div className={className}>
       {op ? <CardVenda op={op} onSalvo={onSalvo} /> : <SemOportunidade contatoId={contato.id} onSalvo={onSalvo} />}
       <CardAgenda contato={contato} opId={op?.id} />
       <CardDados contato={contato} onSalvo={onSalvo} />
@@ -156,7 +157,7 @@ function Ficha({ contato, op, onSalvo }) {
   );
 }
 
-function Card({ titulo, children }) {
+export function Card({ titulo, children }) {
   return (
     <section className="bg-superficie rounded-2xl border border-linha p-4">
       <h2 className="font-semibold mb-3">{titulo}</h2>

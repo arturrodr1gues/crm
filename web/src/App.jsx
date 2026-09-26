@@ -5,6 +5,7 @@ import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Hoje from "./pages/Hoje";
 import Funil from "./pages/Funil";
+import Lead from "./pages/Lead";
 import Conversas from "./pages/Conversas";
 import Contato from "./pages/Contato";
 import Agenda from "./pages/Agenda";
@@ -55,6 +56,7 @@ values ('${sessao.user.id}', 'Artur');`}
       <Routes>
         <Route path="/" element={<Hoje />} />
         <Route path="/funil" element={<Funil />} />
+        <Route path="/funil/:id" element={<Lead />} />
         <Route path="/conversas" element={<Conversas />} />
         <Route path="/conversas/:id" element={<Contato />} />
         {/* Endereço antigo: links salvos continuam funcionando */}
