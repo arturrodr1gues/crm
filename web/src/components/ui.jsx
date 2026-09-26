@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { nomeEtapa } from "../lib/constantes";
 
 export function Modal({ titulo, onFechar, children, estreito }) {
   useEffect(() => {
@@ -71,4 +72,35 @@ export function BotaoSecundario({ children, ...props }) {
 
 export function Vazio({ children }) {
   return <p className="text-tinta-suave text-sm py-3">{children}</p>;
+}
+
+// Mostra uma imagem em tela cheia, sem sair do sistema. Fecha no ×, no Esc ou clicando fora.
+export function PreviaImagem({ src, alt = "", onFechar }) {
+  useEffect(() => {
+    const esc = (e) => e.key === "Escape" && onFechar();
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onFechar]);
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Imagem" onClick={onFechar}
+      className="fixed inset-0 z-50 bg-tinta/90 grid place-items-center p-4">
+      <button type="button" onClick={onFechar} aria-label="Fechar"
+        className="absolute top-3 right-3 h-11 w-11 rounded-full bg-white/15 text-white text-3xl leading-none grid place-items-center">×</button>
+      <img src={src} alt={alt} onClick={(e) => e.stopPropagation()}
+        className="max-h-full max-w-full rounded-lg object-contain shadow-2xl" />
+    </div>
+  );
+}
+
+// Selo com a etapa do funil em que o lead está
+export function SeloEtapa({ etapa, grande = false }) {
+  const cor = etapa === "fechado" ? "bg-ok/15 text-ok"
+    : etapa === "perdido" ? "bg-alerta/10 text-alerta"
+    : "bg-sol/20 text-sol-escuro";
+  return (
+    <span className={`block max-w-40 truncate rounded-full font-semibold ${grande ? "px-3 py-1 text-xs" : "px-2 py-0.5 text-[11px]"} ${cor}`}>
+      {nomeEtapa(etapa)}
+    </span>
+  );
 }

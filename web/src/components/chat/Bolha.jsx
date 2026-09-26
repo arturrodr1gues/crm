@@ -110,12 +110,31 @@ function Meta({ m, minha, neutro }) {
   );
 }
 
+// Transforma endereços (https://..., www....) em links clicáveis
+const RE_LINK = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
+
+function TextoComLinks({ texto, clara }) {
+  return texto.split(RE_LINK).map((parte, i) => {
+    if (i % 2 === 0) return parte;
+    // Pontuação no fim da frase não faz parte do link
+    const [, url, resto] = parte.match(/^(.*?)([.,;:!?)\]]*)$/);
+    return (
+      <span key={i}>
+        <a href={url.startsWith("http") ? url : `https://${url}`} target="_blank" rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className={`underline underline-offset-2 break-all ${clara ? "text-white" : "text-sky-700"}`}>{url}</a>
+        {resto}
+      </span>
+    );
+  });
+}
+
 // Reserva no fim do texto o lugar da hora, que fica por cima no canto (como no WhatsApp).
 const Espaco = ({ meta }) => <span aria-hidden="true" className="invisible inline-block ml-2 align-bottom">{meta}</span>;
 
 function Conteudo({ m, minha, meta, onVotar }) {
   const legenda = (classe = "") => m.texto && (
-    <div className={`whitespace-pre-wrap ${classe}`}>{m.texto}<Espaco meta={meta} /></div>
+    <div className={`whitespace-pre-wrap ${classe}`}><TextoComLinks texto={m.texto} clara={minha} /><Espaco meta={meta} /></div>
   );
 
   switch (m.tipo) {
@@ -133,7 +152,7 @@ function Conteudo({ m, minha, meta, onVotar }) {
       return <Enquete m={m} minha={minha} onVotar={onVotar} />;
     default:
       return m.texto
-        ? <div className="whitespace-pre-wrap">{m.texto}<Espaco meta={meta} /></div>
+        ? <div className="whitespace-pre-wrap"><TextoComLinks texto={m.texto} clara={minha} /><Espaco meta={meta} /></div>
         : <div><em className="opacity-70">[{m.tipo}]</em><Espaco meta={meta} /></div>;
   }
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { dataCurta, formatarTelefone, nomeOuTelefone } from "../lib/format";
 import { chamarWhatsapp, subirMidia, tipoDoArquivo } from "../lib/whatsapp";
+import { SeloEtapa } from "./ui";
 import Bolha from "./chat/Bolha";
 import Compositor from "./chat/Compositor";
 import { AcoesMensagem, EnviarContato, NovaEnquete, PreviaArquivo } from "./chat/Modais";
@@ -11,7 +12,7 @@ const COLUNAS = "id, direcao, tipo, texto, status, erro, momento, autor_nome, au
 
 const ordenar = (lista) => [...lista].sort((a, b) => new Date(a.momento) - new Date(b.momento));
 
-export default function Chat({ contato }) {
+export default function Chat({ contato, etapa }) {
   const [msgs, setMsgs] = useState([]);
   const [erro, setErro] = useState("");
   const [respostas, setRespostas] = useState([]);
@@ -194,7 +195,8 @@ export default function Chat({ contato }) {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2.5 md:px-4 pt-6 pb-3 space-y-1 bg-fundo"
+      <div className="relative flex-1 min-h-0">
+      <div className={`h-full overflow-y-auto overscroll-contain px-2.5 md:px-4 pt-6 ${etapa ? "pb-12" : "pb-3"} space-y-1 bg-fundo`}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) arquivoEscolhido(f); }}>
         {msgs.length === 0 && (
@@ -218,6 +220,13 @@ export default function Chat({ contato }) {
           );
         })}
         <div ref={fim} />
+      </div>
+      {/* Onde o lead está no funil, sempre à vista no canto da conversa */}
+      {etapa && (
+        <div className="absolute bottom-3 right-4 pointer-events-none rounded-full bg-superficie shadow-md">
+          <SeloEtapa etapa={etapa} grande />
+        </div>
+      )}
       </div>
 
       {erro && (

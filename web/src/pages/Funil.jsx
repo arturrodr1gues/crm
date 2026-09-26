@@ -30,20 +30,20 @@ export default function Funil() {
   if (!ops) return <div className="p-6 text-tinta-suave">Carregando…</div>;
 
   return (
-    <div className="pt-6">
-      <header className="px-4 md:px-8 mb-4">
+    <div className="pt-6 h-full flex flex-col">
+      <header className="px-4 md:px-8 mb-4 shrink-0">
         <h1 className="text-3xl font-bold">Funil</h1>
         <p className="text-tinta-suave">{ops.filter((o) => o.etapa !== "fechado").length} negociações em andamento</p>
       </header>
 
-      <div className="flex gap-3 overflow-x-auto px-4 md:px-8 pb-4 snap-x snap-mandatory md:snap-none overscroll-x-contain">
+      <div className="flex-1 min-h-0 flex items-start gap-3 overflow-x-auto px-4 md:px-8 pb-4 snap-x snap-mandatory md:snap-none overscroll-x-contain">
         {ETAPAS.map((etapa, idx) => {
           const cards = ops.filter((o) => o.etapa === etapa.id);
           return (
             <section key={etapa.id}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => { if (arrastando) mover(arrastando, etapa.id); setArrastando(null); }}
-              className="snap-start shrink-0 w-[82vw] sm:w-72 bg-superficie/60 rounded-2xl border border-linha flex flex-col max-h-[calc(100vh-11rem)]">
+              className="snap-start shrink-0 w-[82vw] sm:w-72 bg-superficie/60 rounded-2xl border border-linha flex flex-col max-h-full">
               <div className="p-3 pb-2">
                 {/* Régua de progresso: mostra onde a etapa está no caminho até o fechamento */}
                 <div className="flex gap-1 mb-2" aria-hidden="true">
