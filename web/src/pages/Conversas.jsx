@@ -15,7 +15,7 @@ export default function Conversas() {
 
   // Computador: lista ao lado, como no WhatsApp Web.
   return (
-    <div className="flex h-screen">
+    <div className="flex h-dvh">
       <aside className="w-80 xl:w-96 shrink-0 border-r border-linha bg-superficie">
         <ListaConversas lateral />
       </aside>

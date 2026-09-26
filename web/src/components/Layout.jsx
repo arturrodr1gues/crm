@@ -37,7 +37,7 @@ export default function Layout({ children }) {
   return (
     <div className="min-h-full md:flex">
       {/* Menu lateral no computador */}
-      <aside className={`hidden md:flex md:flex-col ${recolhido ? "w-16 px-2" : "w-56 px-4"} shrink-0 bg-tinta text-white py-4 gap-1 sticky top-0 h-screen`}>
+      <aside className={`hidden md:flex md:flex-col ${recolhido ? "w-16 px-2" : "w-56 px-4"} shrink-0 bg-tinta text-white py-4 gap-1 sticky top-0 h-dvh`}>
         <div className={`flex items-center gap-2 mb-6 ${recolhido ? "flex-col" : "px-2"}`}>
           <span className="h-3 w-3 shrink-0 rounded-full bg-sol" />
           {!recolhido && <span className="font-bold text-lg flex-1">CRM Solar</span>}

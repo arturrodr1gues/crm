@@ -71,7 +71,7 @@ export default function Chat({ contato }) {
     };
   }, [contato.id]);
 
-  useEffect(() => { fim.current?.scrollIntoView({ block: "end" }); }, [msgs.length]);
+  useEffect(() => { const lista = fim.current?.parentElement; if (lista) lista.scrollTop = lista.scrollHeight; }, [msgs.length]);
 
   const porMessageId = useMemo(
     () => Object.fromEntries(msgs.filter((m) => m.message_id).map((m) => [m.message_id, m])), [msgs]);
@@ -194,7 +194,7 @@ export default function Chat({ contato }) {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex-1 overflow-y-auto px-2.5 md:px-4 pt-6 pb-3 space-y-1 bg-fundo"
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2.5 md:px-4 pt-6 pb-3 space-y-1 bg-fundo"
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) arquivoEscolhido(f); }}>
         {msgs.length === 0 && (

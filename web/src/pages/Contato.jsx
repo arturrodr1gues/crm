@@ -24,7 +24,7 @@ export default function Contato() {
 
   // Computador: lista de todas as conversas ao lado, como no WhatsApp Web.
   const comLista = (conteudo) => (larga ? (
-    <div className="flex h-screen">
+    <div className="flex h-dvh">
       {listaRecolhida ? (
         <div className="w-12 shrink-0 border-r border-linha bg-superficie flex flex-col items-center pt-3">
           <button type="button" onClick={() => setListaRecolhida(false)} aria-label="Mostrar conversas" title="Mostrar conversas"
@@ -82,7 +82,7 @@ export default function Contato() {
   );
 
   return comLista(
-    <div className="flex flex-col h-[calc(100dvh-4rem-env(safe-area-inset-bottom,0px))] md:h-screen">
+    <div className="flex flex-col h-[calc(100dvh-4rem-env(safe-area-inset-bottom,0px))] md:h-dvh">
       <header className="bg-superficie border-b border-linha px-4 md:px-5 py-2.5 flex items-center gap-2">
         <Link to="/conversas" className="md:hidden h-10 w-10 -ml-2 grid place-items-center text-2xl" aria-label="Voltar">‹</Link>
         {/* Tocar no nome abre os detalhes, como no WhatsApp */}
@@ -113,12 +113,13 @@ export default function Contato() {
         ))}
       </div>
 
-      <div className={`flex-1 min-h-0 md:grid ${painelAtual ? "md:grid-cols-[1fr_360px]" : "md:grid-cols-1"}`}>
+      <div className={`flex-1 min-h-0 md:grid md:grid-rows-[minmax(0,1fr)] ${
+        painelAtual ? "md:grid-cols-[minmax(0,1fr)_360px]" : "md:grid-cols-[minmax(0,1fr)]"}`}>
         <div className={`h-full min-h-0 ${aba === "conversa" ? "block" : "hidden"} md:block`}>
           <Chat contato={contato} />
         </div>
         {qual && qual !== "conversa" && (
-          <div className={`h-full overflow-y-auto border-l border-linha bg-fundo ${aba !== "conversa" ? "block" : "hidden"} md:block`}>
+          <div className={`relative h-full overflow-y-auto overscroll-contain border-l border-linha bg-fundo ${aba !== "conversa" ? "block" : "hidden"} md:block`}>
             {md && (
               <div className="sticky top-0 z-10 flex items-center justify-between h-12 px-4 bg-superficie border-b border-linha">
                 <span className="font-semibold">{qual === "detalhes" ? "Dados da conversa" : "Ficha do cliente"}</span>
@@ -333,7 +334,7 @@ function CardDados({ contato, onSalvo }) {
           <span className="text-sm font-medium">Conta de luz</span>
           <div className="mt-1 flex gap-2">
             {contato.conta_luz_path && <BotaoSecundario type="button" onClick={abrirConta}>Ver</BotaoSecundario>}
-            <label className="h-12 px-4 rounded-lg border border-linha bg-superficie font-medium grid place-items-center cursor-pointer">
+            <label className="relative h-12 px-4 rounded-lg border border-linha bg-superficie font-medium grid place-items-center cursor-pointer">
               {enviandoConta ? "Enviando..." : contato.conta_luz_path ? "Trocar foto" : "Enviar foto"}
               <input type="file" accept="image/*,application/pdf" capture="environment" className="sr-only" onChange={enviarConta} />
             </label>

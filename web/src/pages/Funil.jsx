@@ -36,7 +36,7 @@ export default function Funil() {
         <p className="text-tinta-suave">{ops.filter((o) => o.etapa !== "fechado").length} negociações em andamento</p>
       </header>
 
-      <div className="flex gap-3 overflow-x-auto px-4 md:px-8 pb-4 snap-x snap-mandatory">
+      <div className="flex gap-3 overflow-x-auto px-4 md:px-8 pb-4 snap-x snap-mandatory md:snap-none overscroll-x-contain">
         {ETAPAS.map((etapa, idx) => {
           const cards = ops.filter((o) => o.etapa === etapa.id);
           return (
@@ -80,7 +80,7 @@ function Cartao({ o, idx, onMover, onArrastar }) {
   return (
     <li draggable onDragStart={() => onArrastar(o.id)} onDragEnd={() => onArrastar(null)}
       className="bg-superficie rounded-xl border border-linha p-3 cursor-grab active:cursor-grabbing">
-      <Link to={`/conversas/${c.id}`} className="block">
+      <Link to={`/conversas/${c.id}`} draggable={false} className="block">
         <div className="font-medium truncate">{nomeOuTelefone(c)}</div>
         <div className="text-sm text-tinta-suave mt-0.5">
           {[c.bairro, c.consumo_kwh && `${c.consumo_kwh} kWh`].filter(Boolean).join(", ") || "Sem conta de luz ainda"}
