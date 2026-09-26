@@ -1,4 +1,5 @@
-// Etapas do funil comercial, na ordem.
+// Etapas iniciais do funil. As colunas de verdade ficam na tabela etapas_funil
+// e são editadas no gerenciador do funil (ver lib/etapas.js).
 export const ETAPAS = [
   { id: "novo",        nome: "Novo contato" },
   { id: "qualificado", nome: "Conta de luz recebida" },
@@ -8,8 +9,6 @@ export const ETAPAS = [
   { id: "fechado",     nome: "Fechado" },
 ];
 export const ETAPA_PERDIDO = { id: "perdido", nome: "Perdido" };
-export const nomeEtapa = (id) =>
-  [...ETAPAS, ETAPA_PERDIDO].find((e) => e.id === id)?.nome ?? id;
 
 export const ORIGENS = [
   { id: "whatsapp", nome: "WhatsApp" },

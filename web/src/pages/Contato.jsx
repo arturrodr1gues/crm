@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { ETAPAS, ETAPA_PERDIDO, FAIXAS, FINANCIAMENTO, ORIGENS, faixaPorConsumo, nomeTipo } from "../lib/constantes";
+import { FAIXAS, FINANCIAMENTO, ORIGENS, faixaPorConsumo, nomeTipo } from "../lib/constantes";
+import { nomeEtapa, tipoEtapa, useEtapas } from "../lib/etapas";
 import { dataCurta, formatarTelefone, hora, nomeOuTelefone, normalizarTelefone, paraInputLocal } from "../lib/format";
 import { Campo, Entrada, Selecao, AreaTexto, BotaoPrimario, BotaoSecundario, Vazio, PreviaImagem } from "../components/ui";
 import Chat from "../components/Chat";
@@ -14,6 +15,7 @@ import { estadoAtendimento, useAgora, useAtendimentoConfig } from "../lib/atendi
 import { SeloSla } from "../components/SelosAtendimento";
 
 export default function Contato() {
+  useEtapas(); // nome da etapa no cabeçalho acompanha o gerenciador do funil
   const { id } = useParams();
   const [contato, setContato] = useState(null);
   const [op, setOp] = useState(null);
@@ -90,7 +92,7 @@ export default function Contato() {
   const abrirDetalhes = () => (md ? setPainel("detalhes") : setAba("detalhes"));
   const mostrarPainel = md ? painelAberto : aba === "detalhes";
 
-  const etapa = op && (op.etapa === "perdido" ? ETAPA_PERDIDO.nome : ETAPAS.find((e) => e.id === op.etapa)?.nome);
+  const etapa = op && nomeEtapa(op.etapa);
   const { sla } = estadoAtendimento(contato, config, agora);
 
   return comLista(
@@ -185,6 +187,7 @@ function Card({ titulo, children }) {
 }
 
 function CardVenda({ op, onSalvo }) {
+  const etapas = useEtapas();
   const [f, setF] = useState(inicial(op));
   const [salvo, setSalvo] = useState(false);
   useEffect(() => setF(inicial(op)), [op]);
@@ -198,7 +201,7 @@ function CardVenda({ op, onSalvo }) {
       financiamento_status: f.financiamento_status || null,
       financiamento_banco: f.financiamento_banco.trim() || null,
       proximo_followup: f.proximo_followup ? new Date(f.proximo_followup).toISOString() : null,
-      motivo_perda: f.etapa === "perdido" ? f.motivo_perda.trim() || null : null,
+      motivo_perda: tipoEtapa(f.etapa) === "perdido" ? f.motivo_perda.trim() || null : null,
     }).eq("id", op.id);
     setSalvo(true); onSalvo();
   }
@@ -206,8 +209,8 @@ function CardVenda({ op, onSalvo }) {
   return (
     <Card titulo="Venda">
       <form onSubmit={salvar} className="space-y-3">
-        <Campo rotulo="Etapa"><Selecao opcoes={[...ETAPAS, ETAPA_PERDIDO]} value={f.etapa} onChange={set("etapa")} /></Campo>
-        {f.etapa === "perdido" && (
+        <Campo rotulo="Etapa"><Selecao opcoes={etapas} value={f.etapa} onChange={set("etapa")} /></Campo>
+        {tipoEtapa(f.etapa) === "perdido" && (
           <Campo rotulo="Por que não fechou?"><Entrada value={f.motivo_perda} onChange={set("motivo_perda")} /></Campo>
         )}
         <Campo rotulo="Próximo retorno" dica="Aparece na tela Hoje no dia marcado.">

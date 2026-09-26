@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { DIAS_ALERTA_PROPOSTA, nomeEtapa, nomeTipo } from "../lib/constantes";
+import { DIAS_ALERTA_PROPOSTA, nomeTipo } from "../lib/constantes";
+import { nomeEtapa, useEtapas } from "../lib/etapas";
 import { diaSemana, diasDesde, fimDoDia, hora, inicioDoDia, nomeOuTelefone, quando } from "../lib/format";
 import { Vazio } from "../components/ui";
 
 export default function Hoje() {
+  useEtapas(); // nomes das etapas vêm do gerenciador do funil
   const [d, setD] = useState(null);
 
   async function carregar() {
