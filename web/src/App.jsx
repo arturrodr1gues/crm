@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
+import RedefinirSenha from "./pages/RedefinirSenha";
 import Hoje from "./pages/Hoje";
 import Funil from "./pages/Funil";
 import Conversas from "./pages/Conversas";
@@ -28,6 +29,8 @@ export default function App() {
   }, [sessao]);
 
   if (sessao === undefined) return null;
+  // Link do e-mail de recuperação: com sessão, pede a senha nova; sem, avisa que expirou.
+  if (window.location.pathname === "/redefinir-senha") return <RedefinirSenha sessao={sessao} />;
   if (!sessao) return <Login />;
   if (membro === undefined) return null;
 

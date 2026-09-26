@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { BotaoPrimario, BotaoSecundario, Campo, Entrada } from "../components/ui";
 import ConfigAtendimento from "../components/ConfigAtendimento";
+import NovaSenha from "../components/NovaSenha";
 
 // Enquanto o QR Code está na tela, consulta o status até o celular conectar.
 const INTERVALO_STATUS_MS = 3000;
@@ -67,6 +68,10 @@ export default function Configuracoes() {
       )}
 
       <ConfigAtendimento />
+
+      <Cartao titulo="Sua senha">
+        <NovaSenha />
+      </Cartao>
     </div>
   );
 }
