@@ -9,6 +9,7 @@ const itens = [
   { to: "/funil", nome: "Funil", icone: IconeFunil },
   { to: "/conversas", nome: "Conversas", icone: IconeChat, badge: true },
   { to: "/agenda", nome: "Agenda", icone: IconeAgenda },
+  { to: "/dashboard", nome: "Dashboard", icone: IconeGrafico },
   { to: "/configuracoes", nome: "Ajustes", icone: IconeAjustes },
 ];
 
@@ -80,7 +81,7 @@ export default function Layout({ children }) {
       </button>}
 
       {/* Barra inferior no celular */}
-      <nav className="md:hidden shrink-0 z-30 bg-superficie border-t border-linha grid grid-cols-5"
+      <nav className="md:hidden shrink-0 z-30 bg-superficie border-t border-linha grid grid-cols-6"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         {itens.map((i) => (
           <NavLink key={i.to} to={i.to} end={i.to === "/"}
@@ -134,6 +135,11 @@ function IconeChat(p) {
 function IconeAgenda(p) {
   return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
     <rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" />
+  </svg>);
+}
+function IconeGrafico(p) {
+  return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M3 3v18h18M8 16v-5M13 16V7M18 16v-8" />
   </svg>);
 }
 function IconeAjustes(p) {

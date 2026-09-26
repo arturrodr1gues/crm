@@ -28,6 +28,7 @@ supabase/
   migrations/0002_whatsapp_config.sql  servidor e token da UAZAPI (só as Edge Functions leem)
   migrations/0004_chat_completo.sql    mídia, reações, enquetes, edição, exclusão e leitura
   migrations/0005_atendimento.sql      conversas abertas/fechadas, SLA, follow-up e mensagens rápidas com nome
+  migrations/0007_dashboard.sql        função dashboard_kpis (indicadores de leads, atendimento e SLA)
   functions/_shared/uazapi.ts      tudo que é específico da UAZAPI
   functions/_shared/config.ts      lê a configuração salva pela tela de Ajustes
   functions/uazapi-webhook/        recebe mensagens
