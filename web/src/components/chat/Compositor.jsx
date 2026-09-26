@@ -22,6 +22,17 @@ export default function Compositor({
 
   useEffect(() => { if (respondendo) campo.current?.focus(); }, [respondendo]);
 
+  // Campo começa com 2 linhas e cresce com o texto até 4; depois disso rola por dentro.
+  useEffect(() => {
+    const el = campo.current;
+    if (!el) return;
+    // Vazio: altura natural de 2 linhas (evita medir antes de o estilo carregar)
+    if (!texto) { el.style.height = ""; return; }
+    el.style.height = "auto";
+    const max = parseFloat(getComputedStyle(el).maxHeight);
+    el.style.height = `${Math.min(el.scrollHeight + 2, max)}px`;
+  }, [texto, gravando]);
+
   function enviar(e) {
     e?.preventDefault();
     const t = texto.trim();
@@ -126,13 +137,13 @@ export default function Compositor({
             <button type="button" onClick={() => { setPainel(null); setGravando(true); }} aria-label="Gravar áudio" className={botao}>
               <IconeMic className="w-5 h-5" />
             </button>
-            <textarea ref={campo} value={texto} onChange={(e) => setTexto(e.target.value)} rows={1} onPaste={colar}
+            <textarea ref={campo} value={texto} onChange={(e) => setTexto(e.target.value)} rows={2} onPaste={colar}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey && window.matchMedia("(min-width: 768px)").matches) enviar(e);
                 if (e.key === "Escape" && respondendo) onCancelarResposta();
               }}
               placeholder={grupo ? "Escreva para o grupo" : "Escreva uma mensagem"}
-              className="flex-1 min-w-0 resize-none max-h-32 min-h-10 px-3.5 py-2 rounded-3xl border border-linha bg-fundo text-base leading-snug" />
+              className="flex-1 min-w-0 resize-none leading-6 max-h-[7.125rem] overflow-y-auto px-3.5 py-2 rounded-2xl border border-linha bg-fundo text-base" />
             <button disabled={!texto.trim()} aria-label="Enviar"
               className="h-10 w-10 shrink-0 grid place-items-center rounded-full bg-sol text-tinta disabled:opacity-40">
               <IconeEnviar className="w-[18px] h-[18px]" />

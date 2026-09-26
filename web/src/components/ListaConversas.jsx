@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { nomeOuTelefone, quando, soDigitos } from "../lib/format";
+import { SeloEtapa } from "./ui";
 
 /**
  * Lista de conversas com busca e filtro de não lidas, em tempo real.
@@ -15,7 +16,7 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
 
   async function carregar() {
     let q = supabase.from("contatos")
-      .select("id, nome, telefone, ultima_mensagem, ultima_mensagem_em, nao_lidas, is_grupo")
+      .select("id, nome, telefone, ultima_mensagem, ultima_mensagem_em, nao_lidas, is_grupo, oportunidades(etapa, created_at)")
       .not("ultima_mensagem_em", "is", null)
       .order("ultima_mensagem_em", { ascending: false })
       .limit(100);
@@ -91,11 +92,14 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
                     </div>
                     <div className={`text-sm truncate ${c.nao_lidas ? "text-tinta" : "text-tinta-suave"}`}>{c.ultima_mensagem}</div>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-xs text-tinta-suave">{quando(c.ultima_mensagem_em)}</span>
-                    {c.nao_lidas > 0 && (
-                      <span className="min-w-5 h-5 px-1.5 rounded-full bg-sol text-tinta text-[11px] font-bold grid place-items-center">{c.nao_lidas}</span>
-                    )}
+                  <div className="shrink-0 flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-1.5">
+                      {c.nao_lidas > 0 && (
+                        <span className="min-w-5 h-5 px-1.5 rounded-full bg-sol text-tinta text-[11px] font-bold grid place-items-center">{c.nao_lidas}</span>
+                      )}
+                      <span className="text-xs text-tinta-suave">{quando(c.ultima_mensagem_em)}</span>
+                    </div>
+                    <EtapaDoFunil ops={c.oportunidades} />
                   </div>
                 </Link>
               </li>
@@ -105,6 +109,12 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
       </div>
     </div>
   );
+}
+
+// Etapa da negociação mais recente do contato (grupo não tem)
+function EtapaDoFunil({ ops }) {
+  const atual = [...(ops ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+  return atual ? <SeloEtapa etapa={atual.etapa} /> : null;
 }
 
 function IconeGrupo(p) {

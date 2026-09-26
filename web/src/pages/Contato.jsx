@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { ETAPAS, ETAPA_PERDIDO, FAIXAS, FINANCIAMENTO, ORIGENS, faixaPorConsumo, nomeTipo } from "../lib/constantes";
 import { dataCurta, formatarTelefone, hora, nomeOuTelefone, normalizarTelefone, paraInputLocal } from "../lib/format";
-import { Campo, Entrada, Selecao, AreaTexto, BotaoPrimario, BotaoSecundario, Vazio } from "../components/ui";
+import { Campo, Entrada, Selecao, AreaTexto, BotaoPrimario, BotaoSecundario, Vazio, PreviaImagem } from "../components/ui";
 import Chat from "../components/Chat";
 import ListaConversas from "../components/ListaConversas";
 import useMidia, { TELA_LARGA } from "../lib/useMidia";
@@ -24,7 +24,7 @@ export default function Contato() {
 
   // Computador: lista de todas as conversas ao lado, como no WhatsApp Web.
   const comLista = (conteudo) => (larga ? (
-    <div className="flex h-dvh">
+    <div className="flex h-full">
       {listaRecolhida ? (
         <div className="w-12 shrink-0 border-r border-linha bg-superficie flex flex-col items-center pt-3">
           <button type="button" onClick={() => setListaRecolhida(false)} aria-label="Mostrar conversas" title="Mostrar conversas"
@@ -82,7 +82,7 @@ export default function Contato() {
   );
 
   return comLista(
-    <div className="flex flex-col h-[calc(100dvh-4rem-env(safe-area-inset-bottom,0px))] md:h-dvh">
+    <div className="flex flex-col h-full">
       <header className="bg-superficie border-b border-linha px-4 md:px-5 py-2.5 flex items-center gap-2">
         <Link to="/conversas" className="md:hidden h-10 w-10 -ml-2 grid place-items-center text-2xl" aria-label="Voltar">‹</Link>
         {/* Tocar no nome abre os detalhes, como no WhatsApp */}
@@ -116,7 +116,7 @@ export default function Contato() {
       <div className={`flex-1 min-h-0 md:grid md:grid-rows-[minmax(0,1fr)] ${
         painelAtual ? "md:grid-cols-[minmax(0,1fr)_360px]" : "md:grid-cols-[minmax(0,1fr)]"}`}>
         <div className={`h-full min-h-0 ${aba === "conversa" ? "block" : "hidden"} md:block`}>
-          <Chat contato={contato} />
+          <Chat contato={contato} etapa={grupo ? null : op?.etapa} />
         </div>
         {qual && qual !== "conversa" && (
           <div className={`relative h-full overflow-y-auto overscroll-contain border-l border-linha bg-fundo ${aba !== "conversa" ? "block" : "hidden"} md:block`}>
@@ -269,6 +269,7 @@ function CardDados({ contato, onSalvo }) {
   const [salvo, setSalvo] = useState(false);
   const [erro, setErro] = useState("");
   const [enviandoConta, setEnviandoConta] = useState(false);
+  const [previa, setPrevia] = useState(null);
   useEffect(() => setF(ini(contato)), [contato]);
   const set = (k) => (e) => { setF({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value }); setSalvo(false); };
 
@@ -312,7 +313,10 @@ function CardDados({ contato, onSalvo }) {
 
   async function abrirConta() {
     const { data } = await supabase.storage.from("contas-luz").createSignedUrl(contato.conta_luz_path, 300);
-    if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
+    if (!data?.signedUrl) return;
+    // Foto abre em pré-visualização aqui mesmo; PDF continua abrindo no leitor do navegador
+    if (/\.pdf$/i.test(contato.conta_luz_path)) window.open(data.signedUrl, "_blank", "noopener");
+    else setPrevia(data.signedUrl);
   }
 
   return (
@@ -341,6 +345,7 @@ function CardDados({ contato, onSalvo }) {
           </div>
         </div>
 
+        {previa && <PreviaImagem src={previa} alt="Conta de luz" onFechar={() => setPrevia(null)} />}
         <Campo rotulo="Anotações"><AreaTexto rows={3} value={f.observacoes} onChange={set("observacoes")} /></Campo>
         <label className="flex items-start gap-3">
           <input type="checkbox" checked={f.consentimento_lgpd} onChange={set("consentimento_lgpd")} className="mt-1 h-5 w-5 accent-sol" />

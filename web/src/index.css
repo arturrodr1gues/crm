@@ -16,8 +16,20 @@
 }
 
 html, body, #root { height: 100%; }
-/* Impede que o conteúdo inteiro "escorregue" para os lados ou quique ao arrastar */
-html, body { overflow-x: clip; overscroll-behavior: none; }
+/* A página em si não rola: quem rola é a área de conteúdo (<main>).
+   Assim o menu fica parado e nada "escorrega" ao arrastar. */
+html, body { overflow: hidden; overscroll-behavior: none; }
+
+/* Barra de rolagem fina, nas cores do sistema */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--color-tinta-suave) 45%, transparent) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-tinta-suave) 45%, transparent);
+  border-radius: 999px; border: 2px solid transparent; background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--color-tinta-suave); }
+::-webkit-scrollbar-corner { background: transparent; }
 body {
   background: var(--color-fundo);
   color: var(--color-tinta);
