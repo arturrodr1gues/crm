@@ -26,7 +26,7 @@ export default function Contato() {
   if (!contato) return <div className="p-6 text-tinta-suave">Carregando…</div>;
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-4rem-env(safe-area-inset-bottom,0px))] md:h-screen">
+    <div className="flex flex-col h-[calc(100dvh-4rem-env(safe-area-inset-bottom,0px))] md:h-dvh">
       <header className="bg-superficie border-b border-linha px-4 md:px-6 py-3 flex items-center gap-3">
         <Link to="/conversas" className="md:hidden h-10 w-10 -ml-2 grid place-items-center text-2xl" aria-label="Voltar">‹</Link>
         <div className="min-w-0 flex-1">
@@ -48,11 +48,11 @@ export default function Contato() {
         ))}
       </div>
 
-      <div className="flex-1 min-h-0 md:grid md:grid-cols-[1fr_400px]">
+      <div className="flex-1 min-h-0 md:grid md:grid-cols-[minmax(0,1fr)_400px] md:grid-rows-[minmax(0,1fr)]">
         <div className={`h-full min-h-0 ${aba === "conversa" ? "block" : "hidden"} md:block`}>
           <Chat contato={contato} />
         </div>
-        <div className={`h-full overflow-y-auto border-l border-linha bg-fundo ${aba === "dados" ? "block" : "hidden"} md:block`}>
+        <div className={`relative h-full overflow-y-auto overscroll-contain border-l border-linha bg-fundo ${aba === "dados" ? "block" : "hidden"} md:block`}>
           <Ficha contato={contato} op={op} onSalvo={carregar} />
         </div>
       </div>
@@ -251,7 +251,7 @@ function CardDados({ contato, onSalvo }) {
           <span className="text-sm font-medium">Conta de luz</span>
           <div className="mt-1 flex gap-2">
             {contato.conta_luz_path && <BotaoSecundario type="button" onClick={abrirConta}>Ver</BotaoSecundario>}
-            <label className="h-12 px-4 rounded-lg border border-linha bg-superficie font-medium grid place-items-center cursor-pointer">
+            <label className="relative h-12 px-4 rounded-lg border border-linha bg-superficie font-medium grid place-items-center cursor-pointer">
               {enviandoConta ? "Enviando..." : contato.conta_luz_path ? "Trocar foto" : "Enviar foto"}
               <input type="file" accept="image/*,application/pdf" capture="environment" className="sr-only" onChange={enviarConta} />
             </label>

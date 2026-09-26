@@ -33,7 +33,7 @@ export default function Chat({ contato }) {
     return () => { ativo = false; supabase.removeChannel(canal); };
   }, [contato.id]);
 
-  useEffect(() => { fim.current?.scrollIntoView({ block: "end" }); }, [msgs.length]);
+  useEffect(() => { const lista = fim.current?.parentElement; if (lista) lista.scrollTop = lista.scrollHeight; }, [msgs.length]);
 
   async function enviar(e) {
     e?.preventDefault();
@@ -58,7 +58,7 @@ export default function Chat({ contato }) {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5 bg-fundo">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-4 space-y-1.5 bg-fundo">
         {msgs.length === 0 && (
           <p className="text-center text-sm text-tinta-suave py-8">Nenhuma mensagem ainda.</p>
         )}

@@ -16,6 +16,8 @@
 }
 
 html, body, #root { height: 100%; }
+/* Impede que o conteúdo inteiro "escorregue" para os lados ou quique ao arrastar */
+html, body { overflow-x: clip; overscroll-behavior: none; }
 body {
   background: var(--color-fundo);
   color: var(--color-tinta);
