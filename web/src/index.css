@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+/* Cores centralizadas: troque aqui pelas cores da sua identidade visual. */
+@theme {
+  --font-sans: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-fundo: #EEF2F4;
+  --color-superficie: #FFFFFF;
+  --color-tinta: #0F2A3D;
+  --color-tinta-suave: #4A6173;
+  --color-linha: #D5DEE4;
+  --color-sol: #F2A900;
+  --color-sol-escuro: #B37D00;
+  --color-ok: #1F8A70;
+  --color-alerta: #C8372D;
+}
+
+html, body, #root { height: 100%; }
+body {
+  background: var(--color-fundo);
+  color: var(--color-tinta);
+  font-feature-settings: "tnum";
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible { outline: 3px solid var(--color-sol); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
