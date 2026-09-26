@@ -8,6 +8,7 @@ import Funil from "./pages/Funil";
 import Conversas from "./pages/Conversas";
 import Contato from "./pages/Contato";
 import Agenda from "./pages/Agenda";
+import Configuracoes from "./pages/Configuracoes";
 
 export default function App() {
   const [sessao, setSessao] = useState(undefined);
@@ -57,6 +58,7 @@ values ('${sessao.user.id}', 'Artur');`}
         <Route path="/conversas" element={<Conversas />} />
         <Route path="/contatos/:id" element={<Contato />} />
         <Route path="/agenda" element={<Agenda />} />
+        <Route path="/configuracoes" element={<Configuracoes />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Layout>
