@@ -76,10 +76,10 @@ const MIN = 60_000;
 /**
  * - sla: o cliente escreveu e ainda não respondemos. `critico` depois do limite configurado.
  * - followup: respondemos e o cliente está sem retorno há mais que o limite.
- * Grupos e conversas fechadas ficam de fora.
+ * Só vale para leads: grupos, conversas normais, não classificadas e fechadas ficam de fora.
  */
 export function estadoAtendimento(contato, config, agora = Date.now()) {
-  if (!contato || contato.is_grupo || contato.conversa_fechada) return { sla: null, followup: null };
+  if (!contato || contato.is_grupo || contato.conversa_fechada || contato.tipo_contato !== "lead") return { sla: null, followup: null };
   const esperaMin = contato.aguardando_resposta_desde
     ? Math.max(0, Math.floor((agora - new Date(contato.aguardando_resposta_desde)) / MIN)) : null;
   const semRetornoMin = contato.aguardando_cliente_desde

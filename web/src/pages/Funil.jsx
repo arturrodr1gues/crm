@@ -12,23 +12,14 @@ import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "../lib/supabase";
 import { FAIXAS } from "../lib/constantes";
 import { CAMPOS_PADRAO, carregarEtapas, classeCor, reordenarAbertas, tipoEtapa, useEtapas } from "../lib/etapas";
-import { dataCurta, diasDesde, formatarTelefone, inicioDoDia, nomeOuTelefone, soDigitos } from "../lib/format";
+import { dataCurta, diasDesde, formatarTelefone, inicioDoDia, nomeOuTelefone } from "../lib/format";
+import { buscarOportunidades, combina } from "../lib/funil";
 import { BotaoPrimario, BotaoSecundario, Campo, Entrada, Modal } from "../components/ui";
 import GerenciadorFunil, { IconeAlca, IconeCadeado } from "../components/GerenciadorFunil";
+import VisaoFunil from "../components/VisaoFunil";
 
 // Depois de arrastar, o navegador ainda dispara um clique no card: esse clique não deve abrir a conversa.
 let ultimoArraste = 0;
-
-const semAcento = (t) => (t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-
-function combina(o, termo) {
-  if (!termo) return true;
-  const c = o.contato;
-  const digitos = soDigitos(termo);
-  if (digitos.length >= 3 && soDigitos(c.telefone).includes(digitos)) return true;
-  const t = semAcento(termo);
-  return [c.nome, c.bairro, formatarTelefone(c.telefone)].some((v) => semAcento(v).includes(t));
-}
 
 export default function Funil() {
   const etapas = useEtapas();
@@ -49,14 +40,8 @@ export default function Funil() {
   );
 
   async function carregar() {
-    // Ganho e Perdido só dos últimos 30 dias, para o quadro não crescer sem fim
-    const corte = new Date(Date.now() - 30 * 86400000).toISOString();
     const [{ data }, { data: cfg }, lista] = await Promise.all([
-      supabase.from("oportunidades")
-        .select("id, etapa, posicao, etapa_desde, proximo_followup, faixa_consumo, financiamento_status, motivo_perda, contato:contatos(id, nome, telefone, bairro, consumo_kwh, origem)")
-        .or(`etapa.not.in.(fechado,perdido),etapa_desde.gte."${corte}"`)
-        .order("posicao", { ascending: true, nullsFirst: false })
-        .order("etapa_desde", { ascending: true }),
+      buscarOportunidades(),
       supabase.from("funil_config").select("campos_card").maybeSingle(),
       carregarEtapas(),
     ]);
@@ -207,11 +192,14 @@ export default function Funil() {
             <h1 className="text-3xl font-bold">Funil</h1>
             <p className="text-tinta-suave">{emAndamento} negociações em andamento</p>
           </div>
-          <button type="button" onClick={() => setGerenciar(true)} aria-label="Gerenciar funil"
-            className="h-11 px-3 md:px-4 rounded-lg border border-linha bg-superficie font-medium flex items-center gap-2 hover:bg-fundo">
-            <IconeAjustes className="w-5 h-5" />
-            <span className="hidden sm:inline">Gerenciar funil</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <VisaoFunil />
+            <button type="button" onClick={() => setGerenciar(true)} aria-label="Gerenciar funil"
+              className="h-11 px-3 md:px-4 rounded-lg border border-linha bg-superficie font-medium flex items-center gap-2 hover:bg-fundo">
+              <IconeAjustes className="w-5 h-5" />
+              <span className="hidden sm:inline">Gerenciar funil</span>
+            </button>
+          </div>
         </div>
         <div className="relative max-w-md">
           <IconeBusca className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-tinta-suave pointer-events-none" />

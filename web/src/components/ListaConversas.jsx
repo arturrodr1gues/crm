@@ -8,19 +8,20 @@ import { SeloEtapa } from "./ui";
 import { SeloFollowup, SeloSla } from "./SelosAtendimento";
 
 const COLUNAS = "id, nome, telefone, ultima_mensagem, ultima_mensagem_em, nao_lidas, is_grupo, " +
-  "conversa_fechada, aguardando_resposta_desde, aguardando_cliente_desde, oportunidades(etapa, created_at)";
+  "tipo_contato, conversa_fechada, aguardando_resposta_desde, aguardando_cliente_desde, oportunidades(etapa, created_at)";
 
 /**
  * Lista de conversas em tempo real: abas Em aberto / Fechadas, busca e filtros
- * (não lidas, SLA crítico, follow-up).
+ * (não lidas, leads, SLA crítico, follow-up).
  * `lateral`: versão compacta com rolagem própria, para ficar ao lado do chat no computador.
  * `onRecolher`: mostra o botão que esconde a lista.
  */
 export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
   const [lista, setLista] = useState(null);
   const [busca, setBusca] = useState("");
-  const [aba, setAba] = usePreferencia("crm-conversas-aba", "abertas"); // abertas | fechadas
-  const [filtro, setFiltro] = useState("todas"); // todas | nao_lidas | sla | followup
+  const [abaSalva, setAba] = usePreferencia("crm-conversas-aba", "abertas"); // abertas | fechadas
+  const aba = abaSalva === "fechadas" ? "fechadas" : "abertas"; // "leads" (aba antiga) virou filtro
+  const [filtro, setFiltro] = useState(abaSalva === "leads" ? "leads" : "todas"); // todas | nao_lidas | leads | sla | followup
   const [contagem, setContagem] = useState({ sla: 0, followup: 0 });
   const config = useAtendimentoConfig();
   const agora = useAgora();
@@ -28,7 +29,8 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
   // A partir de quando a espera vira SLA crítico / follow-up
   const limiteSla = new Date(agora - config.sla_resposta_min * 60_000).toISOString();
   const limiteFollowup = new Date(agora - config.followup_horas * 3_600_000).toISOString();
-  const soClientesAbertos = (q) => q.eq("conversa_fechada", false).eq("is_grupo", false);
+  // SLA e follow-up só valem para leads em aberto.
+  const soLeadsAbertos = (q) => q.eq("conversa_fechada", false).eq("tipo_contato", "lead");
 
   async function carregar() {
     let q = supabase.from("contatos").select(COLUNAS)
@@ -40,19 +42,20 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
       const d = soDigitos(t);
       q = d.length >= 4 ? q.ilike("telefone", `%${d}%`) : q.ilike("nome", `%${t}%`);
     }
-    const f = aba === "abertas" ? filtro : "todas";
+    const f = aba === "fechadas" ? "todas" : filtro;
     if (f === "nao_lidas") q = q.gt("nao_lidas", 0);
-    if (f === "sla") q = q.eq("is_grupo", false).lt("aguardando_resposta_desde", limiteSla);
-    if (f === "followup") q = q.eq("is_grupo", false).lt("aguardando_cliente_desde", limiteFollowup);
+    if (f === "leads") q = q.eq("tipo_contato", "lead");
+    if (f === "sla") q = q.eq("tipo_contato", "lead").lt("aguardando_resposta_desde", limiteSla);
+    if (f === "followup") q = q.eq("tipo_contato", "lead").lt("aguardando_cliente_desde", limiteFollowup);
     // No SLA, quem espera há mais tempo vem primeiro.
     q = f === "sla" ? q.order("aguardando_resposta_desde", { ascending: true })
       : q.order("ultima_mensagem_em", { ascending: false });
 
     const [{ data }, sla, followup] = await Promise.all([
       q,
-      soClientesAbertos(supabase.from("contatos").select("id", { count: "exact", head: true }))
+      soLeadsAbertos(supabase.from("contatos").select("id", { count: "exact", head: true }))
         .lt("aguardando_resposta_desde", limiteSla),
-      soClientesAbertos(supabase.from("contatos").select("id", { count: "exact", head: true }))
+      soLeadsAbertos(supabase.from("contatos").select("id", { count: "exact", head: true }))
         .lt("aguardando_cliente_desde", limiteFollowup),
     ]);
     setLista(data ?? []);
@@ -79,6 +82,7 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
   const filtros = [
     ["todas", "Todas"],
     ["nao_lidas", "Não lidas"],
+    ["leads", "Leads"],
     ["sla", "SLA crítico", contagem.sla, "bg-alerta text-white"],
     ["followup", "Follow-up", contagem.followup, "bg-sky-100 text-sky-800"],
   ];
@@ -98,7 +102,7 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
           )}
         </div>
 
-        {/* Abas: em aberto / fechadas */}
+        {/* Abas: em aberto / fechadas (leads virou um dos filtros abaixo) */}
         <div role="tablist" aria-label="Situação da conversa" className="grid grid-cols-2 p-1 mb-2 rounded-lg bg-fundo border border-linha">
           {[["abertas", "Em aberto"], ["fechadas", "Fechadas"]].map(([k, n]) => (
             <button key={k} type="button" role="tab" aria-selected={aba === k} onClick={() => setAba(k)}
@@ -112,14 +116,14 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
           aria-label="Buscar conversa"
           className={`w-full px-3 rounded-lg border border-linha ${lateral ? "bg-fundo" : "bg-superficie"} ${campo}`} />
 
-        {aba === "abertas" && (
-          <div className="flex gap-1.5 overflow-x-auto pt-2 pb-0.5">
+        {aba !== "fechadas" && (
+          <div className="flex gap-1 overflow-x-auto pt-2 pb-0.5">
             {filtros.map(([k, n, qtd, corQtd]) => (
               <button key={k} type="button" onClick={() => setFiltro(k)} aria-pressed={filtro === k}
-                className={`shrink-0 h-8 px-3 rounded-full border text-[13px] font-medium flex items-center gap-1.5 ${
+                className={`shrink-0 h-6 px-2 rounded-full border text-[11px] font-medium flex items-center gap-1 ${
                   filtro === k ? "bg-tinta text-white border-tinta" : "bg-superficie border-linha text-tinta"}`}>
                 {n}
-                {qtd > 0 && <span className={`min-w-5 h-5 px-1 rounded-full text-[11px] font-bold grid place-items-center ${corQtd}`}>{qtd}</span>}
+                {qtd > 0 && <span className={`min-w-4 h-4 px-1 rounded-full text-[10px] font-bold grid place-items-center ${corQtd}`}>{qtd}</span>}
               </button>
             ))}
           </div>
@@ -131,8 +135,9 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
           <p className="text-tinta-suave py-8 px-4 text-center text-sm">
             {busca ? "Nenhuma conversa encontrada."
               : aba === "fechadas" ? "Nenhuma conversa encerrada. Use \"Encerrar\" no topo da conversa quando o atendimento terminar."
-              : filtro === "sla" ? "Nenhum cliente esperando além do SLA. 👏"
-              : filtro === "followup" ? "Nenhum follow-up pendente."
+              : filtro === "leads" ? "Nenhum lead em aberto. Marque \"Novo lead\" no topo da conversa para ele aparecer aqui."
+              : filtro === "sla" ? "Nenhum lead esperando além do SLA. 👏"
+              : filtro === "followup" ? "Nenhum lead com follow-up pendente."
               : filtro === "nao_lidas" ? "Nenhuma conversa não lida."
               : "As conversas e grupos do WhatsApp aparecem aqui assim que chegar uma mensagem."}
           </p>

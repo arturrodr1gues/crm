@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "../lib/supabase";
-import { BotaoPrimario, BotaoSecundario, Campo, Entrada, Modal } from "./ui";
+import { BotaoPrimario, BotaoSecundario, Campo, Entrada, Modal, Selecao } from "./ui";
+import { IconeAlca } from "./GerenciadorFunil";
 import { VARIAVEIS, aplicarVariaveis, duracaoCurta, recarregarConfig, useAtendimentoConfig } from "../lib/atendimento";
 
 const OPCOES_SLA = [15, 30, 45, 60, 90, 120, 180, 240, 480];
@@ -59,30 +63,24 @@ function Atendimento({ respostas }) {
     setAviso(error ? "Não foi possível salvar." : "Salvo.");
   }
 
-  const seletor = "mt-1 w-full h-12 px-3 rounded-lg border border-linha bg-fundo text-base";
-
   return (
     <Cartao titulo="Atendimento"
       descricao="Prazos que destacam as conversas em Conversas. Grupos e conversas encerradas ficam de fora.">
       <form onSubmit={salvar} className="space-y-4">
         <Campo rotulo="SLA de resposta"
           dica="Quando o cliente escreve e ninguém responde nesse prazo, a conversa fica vermelha e entra no filtro SLA crítico.">
-          <select value={f.sla_resposta_min} onChange={(e) => setF({ ...f, sla_resposta_min: Number(e.target.value) })} className={seletor}>
-            {OPCOES_SLA.map((m) => <option key={m} value={m}>{duracaoCurta(m)}{m === 60 ? " (padrão)" : ""}</option>)}
-          </select>
+          <Selecao value={f.sla_resposta_min} onChange={(e) => setF({ ...f, sla_resposta_min: Number(e.target.value) })}
+            opcoes={OPCOES_SLA.map((m) => ({ id: m, nome: `${duracaoCurta(m)}${m === 60 ? " (padrão)" : ""}` }))} />
         </Campo>
         <Campo rotulo="Follow-up"
           dica="Quando você manda uma mensagem e o cliente não responde nesse prazo, a conversa entra no filtro Follow-up.">
-          <select value={f.followup_horas} onChange={(e) => setF({ ...f, followup_horas: Number(e.target.value) })} className={seletor}>
-            {OPCOES_FOLLOWUP.map((h) => <option key={h} value={h}>{h} horas{h === 12 ? " (padrão)" : ""}</option>)}
-          </select>
+          <Selecao value={f.followup_horas} onChange={(e) => setF({ ...f, followup_horas: Number(e.target.value) })}
+            opcoes={OPCOES_FOLLOWUP.map((h) => ({ id: h, nome: `${h} horas${h === 12 ? " (padrão)" : ""}` }))} />
         </Campo>
         <Campo rotulo="Mensagem sugerida no follow-up"
           dica="Aparece num botão dentro da conversa. Você revisa antes de enviar; nada é mandado sozinho.">
-          <select value={f.followup_resposta_id ?? ""} onChange={(e) => setF({ ...f, followup_resposta_id: e.target.value || null })} className={seletor}>
-            <option value="">Nenhuma</option>
-            {respostas.map((r) => <option key={r.id} value={r.id}>{r.atalho}</option>)}
-          </select>
+          <Selecao value={f.followup_resposta_id ?? ""} onChange={(e) => setF({ ...f, followup_resposta_id: e.target.value || null })}
+            vazio="Nenhuma" opcoes={respostas.map((r) => ({ id: r.id, nome: r.atalho }))} />
         </Campo>
         <div className="flex items-center gap-3">
           <BotaoPrimario disabled={!mudou || salvando}>{salvando ? "Salvando…" : "Salvar"}</BotaoPrimario>
@@ -98,16 +96,43 @@ function Atendimento({ respostas }) {
 // ---------------------------------------------------------------------
 function MensagensRapidas({ respostas, onMudou }) {
   const [editando, setEditando] = useState(null); // null | {} (nova) | resposta
-  const [erro, setErro] = useState("");
 
-  async function mover(i, direcao) {
-    const j = i + direcao;
-    if (j < 0 || j >= respostas.length) return;
-    // Troca as duas de lugar e regrava a posição de todas (1, 2, 3...), sem empates.
-    const nova = [...respostas];
-    [nova[i], nova[j]] = [nova[j], nova[i]];
-    await Promise.all(nova.map((r, k) => (r.ordem === k + 1 ? null
+  return (
+    <Cartao titulo="Mensagens rápidas"
+      descricao="Atalhos que aparecem acima do campo de mensagem. Use {primeiro_nome} ou {nome} para já sair com o nome do contato.">
+      {!respostas ? <p className="text-sm text-tinta-suave">Carregando…</p> : (
+        <div className="mb-4"><ListaMensagensRapidas respostas={respostas} onMudou={onMudou} onEditar={setEditando} /></div>
+      )}
+      <BotaoSecundario type="button" onClick={() => setEditando({})}>Nova mensagem rápida</BotaoSecundario>
+
+      {editando && (
+        <EditarMensagem resposta={editando} proximaOrdem={respostas?.length ?? 0}
+          onFechar={() => setEditando(null)} onSalvo={() => { setEditando(null); onMudou(); }} />
+      )}
+    </Cartao>
+  );
+}
+
+/** Lista das mensagens rápidas; arraste pela alça para mudar a ordem dos atalhos na conversa. */
+export function ListaMensagensRapidas({ respostas, onMudou, onEditar }) {
+  const [lista, setLista] = useState(respostas);
+  const [erro, setErro] = useState("");
+  useEffect(() => setLista(respostas), [respostas]);
+
+  const sensores = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // Regrava a posição de todas (1, 2, 3...) sem empates; só o que mudou vai para o banco.
+  async function soltar({ active, over }) {
+    if (!over || active.id === over.id) return;
+    const nova = arrayMove(lista, lista.findIndex((r) => r.id === active.id), lista.findIndex((r) => r.id === over.id));
+    setLista(nova); setErro("");
+    const res = await Promise.all(nova.map((r, k) => (r.ordem === k + 1 ? null
       : supabase.from("respostas_rapidas").update({ ordem: k + 1 }).eq("id", r.id))));
+    if (res.some((r) => r?.error)) setErro("Não foi possível salvar a nova ordem.");
     onMudou();
   }
 
@@ -120,39 +145,38 @@ function MensagensRapidas({ respostas, onMudou }) {
   }
 
   return (
-    <Cartao titulo="Mensagens rápidas"
-      descricao="Atalhos que aparecem acima do campo de mensagem. Use {primeiro_nome} ou {nome} para já sair com o nome do contato.">
-      {erro && <p className="text-alerta text-sm mb-3">{erro}</p>}
-      {!respostas ? <p className="text-sm text-tinta-suave">Carregando…</p> : (
-        <ul className="divide-y divide-linha border border-linha rounded-xl mb-4">
-          {respostas.length === 0 && <li className="p-4 text-sm text-tinta-suave">Nenhuma mensagem rápida ainda.</li>}
-          {respostas.map((r, i) => (
-            <li key={r.id} className="p-3 flex gap-3">
-              <div className="flex flex-col">
-                <button type="button" onClick={() => mover(i, -1)} disabled={i === 0} aria-label={`Subir ${r.atalho}`}
-                  className="h-6 w-6 rounded text-tinta-suave hover:bg-fundo disabled:opacity-30">▲</button>
-                <button type="button" onClick={() => mover(i, 1)} disabled={i === respostas.length - 1} aria-label={`Descer ${r.atalho}`}
-                  className="h-6 w-6 rounded text-tinta-suave hover:bg-fundo disabled:opacity-30">▼</button>
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="font-semibold">{r.atalho}</div>
-                <p className="text-sm text-tinta-suave whitespace-pre-wrap break-words"><ComVariaveis texto={r.texto} /></p>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-1 shrink-0">
-                <button type="button" onClick={() => setEditando(r)} className="h-8 px-3 rounded-lg border border-linha text-sm hover:bg-fundo">Editar</button>
-                <button type="button" onClick={() => excluir(r)} className="h-8 px-3 rounded-lg border border-linha text-sm text-alerta hover:bg-fundo">Excluir</button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      <BotaoSecundario type="button" onClick={() => setEditando({})}>Nova mensagem rápida</BotaoSecundario>
+    <>
+      {erro && <p role="alert" className="text-alerta text-sm mb-3">{erro}</p>}
+      <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={soltar}>
+        <SortableContext items={lista.map((r) => r.id)} strategy={verticalListSortingStrategy}>
+          <ul className="divide-y divide-linha border border-linha rounded-xl bg-superficie">
+            {lista.length === 0 && <li className="p-4 text-sm text-tinta-suave">Nenhuma mensagem rápida ainda.</li>}
+            {lista.map((r) => <LinhaMensagem key={r.id} r={r} onEditar={onEditar} onExcluir={excluir} />)}
+          </ul>
+        </SortableContext>
+      </DndContext>
+    </>
+  );
+}
 
-      {editando && (
-        <EditarMensagem resposta={editando} proximaOrdem={respostas?.length ?? 0}
-          onFechar={() => setEditando(null)} onSalvo={() => { setEditando(null); onMudou(); }} />
-      )}
-    </Cartao>
+function LinhaMensagem({ r, onEditar, onExcluir }) {
+  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: r.id });
+  return (
+    <li ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={`p-3 flex gap-2 bg-superficie first:rounded-t-xl last:rounded-b-xl ${isDragging ? "relative z-10 shadow-lg rounded-xl" : ""}`}>
+      <button type="button" ref={setActivatorNodeRef} {...attributes} {...listeners} aria-label={`Arrastar ${r.atalho}`}
+        className="h-8 w-7 shrink-0 grid place-items-center text-tinta-suave cursor-grab active:cursor-grabbing touch-none">
+        <IconeAlca className="w-5 h-5" />
+      </button>
+      <div className="min-w-0 flex-1">
+        <div className="font-semibold">{r.atalho}</div>
+        <p className="text-sm text-tinta-suave whitespace-pre-wrap break-words"><ComVariaveis texto={r.texto} /></p>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-1 shrink-0">
+        <button type="button" onClick={() => onEditar(r)} className="h-8 px-3 rounded-lg border border-linha text-sm hover:bg-fundo">Editar</button>
+        <button type="button" onClick={() => onExcluir(r)} className="h-8 px-3 rounded-lg border border-linha text-sm text-alerta hover:bg-fundo">Excluir</button>
+      </div>
+    </li>
   );
 }
 
@@ -163,7 +187,7 @@ function ComVariaveis({ texto }) {
     : p));
 }
 
-function EditarMensagem({ resposta, proximaOrdem, onFechar, onSalvo }) {
+export function EditarMensagem({ resposta, proximaOrdem, onFechar, onSalvo }) {
   const nova = !resposta.id;
   const [atalho, setAtalho] = useState(resposta.atalho ?? "");
   const [texto, setTexto] = useState(resposta.texto ?? "");

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { dataCurta, formatarTelefone, nomeOuTelefone } from "../lib/format";
 import { tamanhoLegivel, useUrlMidia } from "../lib/whatsapp";
@@ -12,6 +13,39 @@ const LINK = /https?:\/\/[^\s<>"')]+/gi;
  * mídia, arquivos e links trocados. Em grupo, mostra também quem já escreveu.
  */
 export default function DetalhesConversa({ contato, children }) {
+  return (
+    <div className="bg-fundo min-h-full">
+      {/* Foto à esquerda, nome e número no meio, botão da página do lead à direita */}
+      <section className="bg-superficie px-4 py-4 border-b border-linha grid grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-2 items-center gap-x-2.5">
+        <div className={`row-span-2 h-12 w-12 rounded-full grid place-items-center text-xl font-semibold ${
+          contato.is_grupo ? "bg-linha text-tinta" : "bg-tinta text-white"}`}>
+          {contato.is_grupo ? "👥" : (contato.nome || "?").trim().charAt(0).toUpperCase()}
+        </div>
+        <h2 className="self-end text-base font-semibold truncate">{contato.is_grupo ? contato.nome || "Grupo sem nome" : nomeOuTelefone(contato)}</h2>
+        {!contato.is_grupo && (
+          // A mesma ficha em tela cheia, para quem prefere ver o lead fora da conversa
+          <Link to={`/leads/${contato.id}`}
+            className="col-start-3 row-span-2 row-start-1 h-8 px-2.5 rounded-lg border border-linha text-xs font-medium grid place-items-center whitespace-nowrap hover:bg-fundo">Abrir página do lead</Link>
+        )}
+        <p className="col-start-2 self-start text-xs text-tinta-suave whitespace-nowrap truncate">
+          {contato.is_grupo ? "Grupo do WhatsApp" : formatarTelefone(contato.telefone) || "Sem telefone"}
+        </p>
+      </section>
+
+      {/* Ficha do cliente (venda, agenda, dados, indicações) entra aqui, entre o contato e as mídias */}
+      {children}
+
+      <ConteudoConversa contato={contato} />
+    </div>
+  );
+}
+
+/**
+ * Mídia, arquivos e links trocados na conversa (e participantes, em grupo).
+ * `cartao` desenha as seções como cartões (página do lead); `colunas` é a grade das miniaturas.
+ */
+export function ConteudoConversa({ contato, cartao = false, colunas = "grid-cols-3" }) {
+  const secao = cartao ? "bg-superficie rounded-2xl border border-linha overflow-hidden" : "bg-superficie mt-2 border-y border-linha";
   const [aba, setAba] = useState("midia");
   const [midias, setMidias] = useState(null);
   const [arquivos, setArquivos] = useState(null);
@@ -66,28 +100,8 @@ export default function DetalhesConversa({ contato, children }) {
   ];
 
   return (
-    <div className="bg-fundo min-h-full">
-      <section className="bg-superficie px-4 pt-6 pb-5 text-center border-b border-linha">
-        <div className={`mx-auto h-20 w-20 rounded-full grid place-items-center text-3xl font-semibold ${
-          contato.is_grupo ? "bg-linha text-tinta" : "bg-tinta text-white"}`}>
-          {contato.is_grupo ? "👥" : (contato.nome || "?").trim().charAt(0).toUpperCase()}
-        </div>
-        <h2 className="mt-3 text-lg font-semibold break-words">{contato.is_grupo ? contato.nome || "Grupo sem nome" : nomeOuTelefone(contato)}</h2>
-        <p className="text-sm text-tinta-suave">
-          {contato.is_grupo ? "Grupo do WhatsApp" : formatarTelefone(contato.telefone) || "Sem telefone"}
-        </p>
-        {!contato.is_grupo && contato.telefone && (
-          <div className="mt-4 flex justify-center gap-2">
-            <a href={`https://wa.me/${contato.telefone}`} target="_blank" rel="noreferrer"
-              className="h-9 px-3 rounded-lg border border-linha text-sm font-medium grid place-items-center">Abrir no WhatsApp</a>
-          </div>
-        )}
-      </section>
-
-      {/* Ficha do cliente (venda, agenda, dados, indicações) entra aqui, entre o contato e as mídias */}
-      {children}
-
-      <section className="bg-superficie mt-2 border-y border-linha">
+    <>
+      <section className={secao}>
         <div role="tablist" className="grid grid-cols-3 border-b border-linha">
           {abas.map((a) => (
             <button key={a.id} role="tab" aria-selected={aba === a.id} onClick={() => setAba(a.id)}
@@ -99,7 +113,7 @@ export default function DetalhesConversa({ contato, children }) {
 
         <div className="p-2">
           {aba === "midia" && (midias === null ? <Carregando /> : midias.length === 0 ? <Vazio>Nenhuma foto ou vídeo ainda.</Vazio> : (
-            <div className="grid grid-cols-3 gap-1">
+            <div className={`grid ${colunas} gap-1`}>
               {midias.map((m, i) => <Miniatura key={m.id} m={m} onClick={() => setAberta(i)} />)}
             </div>
           ))}
@@ -122,7 +136,7 @@ export default function DetalhesConversa({ contato, children }) {
       </section>
 
       {contato.is_grupo && participantes.length > 0 && (
-        <section className="bg-superficie mt-2 border-y border-linha">
+        <section className={`${secao} ${cartao ? "mt-4" : ""}`}>
           <h3 className="px-4 pt-3 pb-1 text-sm font-semibold">Quem já escreveu <span className="text-tinta-suave font-normal">{participantes.length}</span></h3>
           <ul className="divide-y divide-linha">
             {participantes.map((p) => (
@@ -141,7 +155,7 @@ export default function DetalhesConversa({ contato, children }) {
       {aberta !== null && midias?.[aberta] && (
         <VisualizadorMidia itens={midias} indice={aberta} onMudar={setAberta} onFechar={() => setAberta(null)} />
       )}
-    </div>
+    </>
   );
 }
 

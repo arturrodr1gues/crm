@@ -6,11 +6,14 @@ import Login from "./pages/Login";
 import RedefinirSenha from "./pages/RedefinirSenha";
 import Hoje from "./pages/Hoje";
 import Funil from "./pages/Funil";
+import FunilTabela from "./pages/FunilTabela";
 import Conversas from "./pages/Conversas";
 import Contato from "./pages/Contato";
+import Lead from "./pages/Lead";
 import Agenda from "./pages/Agenda";
 import Dashboard from "./pages/Dashboard";
 import Configuracoes from "./pages/Configuracoes";
+import MensagensRapidas from "./pages/MensagensRapidas";
 
 export default function App() {
   const [sessao, setSessao] = useState(undefined);
@@ -59,13 +62,16 @@ values ('${sessao.user.id}', 'Artur');`}
       <Routes>
         <Route path="/" element={<Hoje />} />
         <Route path="/funil" element={<Funil />} />
+        <Route path="/funil/tabela" element={<FunilTabela />} />
         <Route path="/conversas" element={<Conversas />} />
         <Route path="/conversas/:id" element={<Contato />} />
+        <Route path="/leads/:id" element={<Lead />} />
         {/* Endereço antigo: links salvos continuam funcionando */}
         <Route path="/contatos/:id" element={<RedirecionaContato />} />
         <Route path="/agenda" element={<Agenda />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
+        <Route path="/mensagens-rapidas" element={<MensagensRapidas />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Layout>

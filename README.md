@@ -14,7 +14,7 @@ Feito para uso no celular em campo, e confortável no computador.
 | **Agenda** | Próximos 14 dias e o que ficou para trás |
 
 Automatismos:
-- Mensagem nova de número desconhecido cria o contato e a oportunidade em "Novo contato".
+- Mensagem nova de número desconhecido cria o contato sem colocar no funil. No topo da conversa, **Novo lead** leva para "Novo contato" no funil (e para a aba Leads) e **Normal** deixa como conversa comum, fora do funil e do dashboard.
 - Grupos do WhatsApp aparecem em Conversas (com o nome de quem escreveu) e dá para responder por ali.
   Ficam fora do funil, da tela Hoje e do contador de não lidas.
 - Ao informar o consumo pela primeira vez, a faixa é preenchida e a etapa passa para "Conta de luz recebida".
@@ -30,6 +30,8 @@ supabase/
   migrations/0005_atendimento.sql      conversas abertas/fechadas, SLA, follow-up e mensagens rápidas com nome
   migrations/0007_dashboard.sql        função dashboard_kpis (indicadores de leads, atendimento e SLA)
   migrations/0008_gerenciador_funil.sql colunas editáveis do funil, ordem dos cards e conteúdo do card
+  migrations/0009_classificacao_contato.sql lead ou conversa normal (botões Novo lead / Normal)
+  migrations/0010_sla_so_leads.sql      SLA e follow-up só contam para leads
   functions/_shared/uazapi.ts      tudo que é específico da UAZAPI
   functions/_shared/config.ts      lê a configuração salva pela tela de Ajustes
   functions/uazapi-webhook/        recebe mensagens

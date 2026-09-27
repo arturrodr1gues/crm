@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import PainelEmoji from "./PainelEmoji";
 import {
   IconeAnexo, IconeDoc, IconeEmoji, IconeEnquete, IconeEnviar, IconeFechar, IconeFigurinha, IconeFoto,
   IconeLixo, IconeMic, IconeMusica, IconePessoa,
 } from "./Icones";
 import { rotuloMensagem } from "../../lib/whatsapp";
+import { Modal } from "../ui";
 import { aplicarVariaveis } from "../../lib/atendimento";
 
 /**
@@ -16,11 +18,13 @@ export default function Compositor({
   onTexto, onArquivo, onFigurinha, onContato, onEnquete,
 }) {
   const [texto, setTexto] = useState("");
-  const [painel, setPainel] = useState(null); // null | "emoji" | "anexo"
+  const [painel, setPainel] = useState(null); // null | "emoji" | "anexo" | "modelos"
   const [gravando, setGravando] = useState(false);
   const campo = useRef(null);
   const entradas = { midia: useRef(null), documento: useRef(null), audio: useRef(null), figurinha: useRef(null) };
 
+  // Abriu a conversa: cursor já no campo, pronto para escrever.
+  useEffect(() => { campo.current?.focus(); }, [contato.id]);
   useEffect(() => { if (respondendo) campo.current?.focus(); }, [respondendo]);
 
   // Mensagem rápida (ou sugestão de follow-up) já com o nome do contato, pronta para revisar e enviar.
@@ -100,13 +104,40 @@ export default function Compositor({
         </div>
       </>)}
 
+      {/* "+" dos atalhos: todas as mensagens rápidas com o texto completo, e o caminho para cadastrar/organizar */}
+      {painel === "modelos" && (
+        <Modal titulo="Mensagens rápidas" onFechar={() => setPainel(null)}>
+          {respostas.length === 0 ? (
+            <p className="text-sm text-tinta-suave mb-4">Nenhuma mensagem rápida cadastrada ainda.</p>
+          ) : (
+            <ul className="-mx-2 mb-4 max-h-[55vh] overflow-y-auto">
+              {respostas.map((r) => (
+                <li key={r.id}>
+                  <button type="button" onClick={() => { setPainel(null); usarModelo(r.texto); }}
+                    className="w-full text-left px-2 py-2.5 rounded-lg hover:bg-fundo">
+                    <span className="block font-semibold text-sm">{r.atalho}</span>
+                    <span className="block text-sm text-tinta-suave whitespace-pre-wrap line-clamp-3">{aplicarVariaveis(r.texto, contato)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex flex-wrap gap-2 justify-end">
+            <Link to="/mensagens-rapidas?nova=1"
+              className="h-11 px-4 rounded-lg border border-linha font-medium grid place-items-center hover:bg-fundo">Nova mensagem</Link>
+            <Link to="/mensagens-rapidas"
+              className="h-11 px-4 rounded-lg bg-sol text-tinta font-semibold grid place-items-center">Ir para Mensagens rápidas</Link>
+          </div>
+        </Modal>
+      )}
+
       <input ref={entradas.midia} type="file" accept="image/*,video/*" hidden onChange={(e) => arquivoEscolhido(e)} />
       <input ref={entradas.documento} type="file" hidden onChange={(e) => arquivoEscolhido(e, "documento")} />
       <input ref={entradas.audio} type="file" accept="audio/*" hidden onChange={(e) => arquivoEscolhido(e, "audio")} />
       <input ref={entradas.figurinha} type="file" accept="image/*" hidden onChange={(e) => arquivoEscolhido(e, "figurinha")} />
 
       <div className="px-2 py-1.5">
-        {respostas.length > 0 && !respondendo && !gravando && (
+        {!respondendo && !gravando && (
           <div className="flex gap-2 overflow-x-auto pb-2">
             {respostas.map((r) => (
               <button key={r.id} type="button" onClick={() => usarModelo(r.texto)} title={aplicarVariaveis(r.texto, contato)}
@@ -114,6 +145,10 @@ export default function Compositor({
                 {r.atalho}
               </button>
             ))}
+            <button type="button" onClick={() => setPainel("modelos")} aria-label="Todas as mensagens rápidas" title="Todas as mensagens rápidas"
+              className="shrink-0 h-8 w-8 grid place-items-center rounded-full border border-linha bg-fundo text-lg leading-none text-tinta-suave hover:text-tinta">
+              +
+            </button>
           </div>
         )}
 
@@ -133,7 +168,7 @@ export default function Compositor({
           <Gravador onCancelar={() => setGravando(false)}
             onPronto={(f) => { setGravando(false); onArquivo(f, "audio", { voz: true, direto: true }); }} />
         ) : (
-          <form onSubmit={enviar} className="flex items-end gap-1">
+          <form onSubmit={enviar} className="flex items-center gap-1">
             <button type="button" onClick={() => setPainel(painel === "emoji" ? null : "emoji")} aria-label="Emojis e figurinhas"
               aria-pressed={painel === "emoji"} className={`${botao} ${painel === "emoji" ? "text-tinta" : ""}`}>
               <IconeEmoji className="w-5 h-5" />

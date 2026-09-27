@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
       .in("telefone", variantesTelefone(m.telefone)).limit(1).maybeSingle());
   }
 
-  // 2) Cria a conversa nova (e oportunidade, se foi um cliente quem chamou; grupo fica fora do funil)
+  // 2) Cria a conversa nova. Ela só entra no funil quando alguém marca "Novo lead" na conversa.
   if (!contato) {
     const { data: novo, error } = await supabase.from("contatos").insert({
       // Em grupo o nome é o do grupo, então vale mesmo quando fui eu quem escreveu.
@@ -85,10 +85,6 @@ Deno.serve(async (req) => {
       return new Response("erro ao criar contato", { status: 500 }); // UAZAPI tenta de novo
     }
     contato = novo;
-
-    if (!m.fromMe && !m.isGroup) {
-      await supabase.from("oportunidades").insert({ contato_id: contato.id, etapa: "novo" });
-    }
   } else {
     // Completa dados que faltavam
     const patch: Record<string, unknown> = {};
