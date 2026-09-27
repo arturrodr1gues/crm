@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabase";
 import {
   CAMPOS_CARD, CORES, atualizarEtapasLocal, carregarEtapas, classeCor, reordenarAbertas, useEtapas,
 } from "../lib/etapas";
-import { BotaoPrimario, Modal } from "./ui";
+import { BotaoPrimario, Modal, Selecao } from "./ui";
 
 // Controle do funil: colunas (nome, cor, ordem, alerta, excluir) e o que aparece em cada card.
 export default function GerenciadorFunil({ campos, onCampos, contagem, onFechar, onCardsMovidos }) {
@@ -182,11 +182,8 @@ function LinhaColuna({ etapa, fixa, cards = 0, destinos = [], onSalvar, onExclui
               <p className="text-sm">
                 Essa coluna tem <strong>{cards} {cards === 1 ? "card" : "cards"}</strong>. Para onde eles vão?
               </p>
-              <select value={destino} onChange={(e) => setDestino(e.target.value)} aria-label="Mover cards para"
-                className="w-full h-10 px-2 rounded-lg border border-linha bg-superficie text-base">
-                <option value="">Escolha a coluna</option>
-                {destinos.map((d) => <option key={d.id} value={d.id}>{d.nome}</option>)}
-              </select>
+              <Selecao variante="compacto" opcoes={destinos} vazio="Escolha a coluna" value={destino}
+                onChange={(e) => setDestino(e.target.value)} aria-label="Mover cards para" />
             </>
           ) : (
             <p className="text-sm">Excluir a coluna “{etapa.nome}”? Ela está vazia.</p>

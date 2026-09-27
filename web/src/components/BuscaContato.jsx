@@ -1,11 +1,16 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { nomeOuTelefone, soDigitos } from "../lib/format";
+import { formatarTelefone, nomeOuTelefone, soDigitos } from "../lib/format";
+import { Flutuante, ItemLista } from "./ui";
 
 // Campo de busca de contato por nome ou telefone. Usado em indicação e agenda.
 export default function BuscaContato({ valor, onEscolher, rotulo = "Contato", placeholder = "Nome ou telefone" }) {
   const [termo, setTermo] = useState("");
   const [resultados, setResultados] = useState([]);
+  const [aberto, setAberto] = useState(false);
+  const [ativo, setAtivo] = useState(0);
+  const campo = useRef(null);
+  const base = useId();
 
   useEffect(() => {
     const t = termo.trim();
@@ -16,9 +21,24 @@ export default function BuscaContato({ valor, onEscolher, rotulo = "Contato", pl
       q = digitos.length >= 4 ? q.ilike("telefone", `%${digitos}%`) : q.ilike("nome", `%${t}%`);
       const { data } = await q;
       setResultados(data ?? []);
+      setAtivo(0);
+      setAberto(true);
     }, 250);
     return () => clearTimeout(id);
   }, [termo]);
+
+  const fechar = useCallback(() => setAberto(false), []);
+  function escolher(c) { onEscolher(c); setTermo(""); setAberto(false); }
+
+  const mostrando = aberto && resultados.length > 0;
+
+  function tecla(e) {
+    if (!mostrando) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setAtivo((a) => Math.min(a + 1, resultados.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setAtivo((a) => Math.max(a - 1, 0)); }
+    else if (e.key === "Enter") { e.preventDefault(); escolher(resultados[ativo]); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setAberto(false); } // não fecha o modal junto
+  }
 
   if (valor) {
     return (
@@ -33,24 +53,26 @@ export default function BuscaContato({ valor, onEscolher, rotulo = "Contato", pl
   }
 
   return (
-    <div className="relative">
-      <label className="block">
-        <span className="text-sm font-medium">{rotulo}</span>
-        <input value={termo} onChange={(e) => setTermo(e.target.value)} placeholder={placeholder}
-          className="mt-1 w-full h-12 px-3 rounded-lg border border-linha bg-fundo text-base" />
-      </label>
-      {resultados.length > 0 && (
-        <ul className="absolute z-10 left-0 right-0 mt-1 bg-superficie border border-linha rounded-lg overflow-hidden shadow-md">
-          {resultados.map((c) => (
-            <li key={c.id}>
-              <button type="button" onClick={() => { onEscolher(c); setTermo(""); }}
-                className="w-full text-left px-3 h-11 hover:bg-fundo">
-                {nomeOuTelefone(c)}
-              </button>
-            </li>
+    <label className="block">
+      <span className="text-sm font-medium">{rotulo}</span>
+      <input ref={campo} value={termo} onChange={(e) => setTermo(e.target.value)} placeholder={placeholder}
+        onKeyDown={tecla} onFocus={() => setAberto(true)}
+        role="combobox" aria-autocomplete="list" aria-expanded={mostrando}
+        aria-controls={mostrando ? `${base}-lista` : undefined}
+        aria-activedescendant={mostrando ? `${base}-${ativo}` : undefined}
+        className={`mt-1 w-full h-12 px-3 rounded-lg border bg-fundo text-base transition-colors ${
+          mostrando ? "border-sol ring-2 ring-sol/30" : "border-linha"}`} />
+      {mostrando && (
+        <Flutuante ancora={campo} onFechar={fechar} role="listbox" id={`${base}-lista`}>
+          {resultados.map((c, i) => (
+            <ItemLista key={c.id} id={`${base}-${i}`} role="option" aria-selected={i === ativo} ativo={i === ativo}
+              onMouseEnter={() => setAtivo(i)} onClick={() => escolher(c)}>
+              <span className="block truncate">{nomeOuTelefone(c)}</span>
+              {c.nome && c.telefone && <span className="block text-xs text-tinta-suave">{formatarTelefone(c.telefone)}</span>}
+            </ItemLista>
           ))}
-        </ul>
+        </Flutuante>
       )}
-    </div>
+    </label>
   );
 }
