@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { dataCurta, formatarTelefone, nomeOuTelefone } from "../lib/format";
 import { chamarWhatsapp, subirMidia, tipoDoArquivo } from "../lib/whatsapp";
@@ -7,11 +7,18 @@ import { duracaoCurta, estadoAtendimento, useAgora, useAtendimentoConfig } from 
 import Bolha from "./chat/Bolha";
 import Compositor from "./chat/Compositor";
 import { AcoesMensagem, EnviarContato, NovaEnquete, PreviaArquivo } from "./chat/Modais";
+import ConfirmarAcaoContatos from "./ConfirmarAcaoContatos";
+import { EsqueletoBolhas } from "./Esqueletos";
 
 const COLUNAS = "id, direcao, tipo, texto, status, erro, momento, autor_nome, autor_telefone, message_id, " +
   "midia_path, midia_mime, midia_nome, midia_tamanho, resposta_a, reacoes, extra, editada_em, apagada, enviado_por";
 
 const ordenar = (lista) => [...lista].sort((a, b) => new Date(a.momento) - new Date(b.momento));
+
+// Mensagens por página: a conversa abre com as mais recentes e busca as antigas ao rolar para cima.
+const PAGINA = 15;
+const maisRecentes = (contatoId) => supabase.from("mensagens").select(COLUNAS).eq("contato_id", contatoId)
+  .order("momento", { ascending: false }).order("id", { ascending: false }).limit(PAGINA);
 
 export default function Chat({ contato, etapa }) {
   const [msgs, setMsgs] = useState([]);
@@ -26,8 +33,16 @@ export default function Chat({ contato, etapa }) {
   const agora = useAgora();
   const { followup } = estadoAtendimento(contato, config, agora);
   const modeloFollowup = respostas.find((r) => r.id === config.followup_resposta_id);
-  const fim = useRef(null);
   const vistoPendente = useRef(null);
+  const [temMais, setTemMais] = useState(false);          // ainda há mensagens mais antigas no banco
+  const [carregandoMais, setCarregandoMais] = useState(false);
+  const [iniciada, setIniciada] = useState(false);        // primeira página já chegou
+  const rolagem = useRef(null);
+  const ajuste = useRef(null);       // distância do fim antes de pôr mensagens antigas em cima
+  const carregando = useRef(false);
+  const irDepois = useRef(null);     // mensagem citada para mostrar quando a página dela chegar
+  const contatoAtual = useRef(contato.id);
+  contatoAtual.current = contato.id;
 
   // Zera o contador e manda o "visto" para quem escreveu (✓✓ azul no celular da pessoa).
   function marcarLida() {
@@ -42,14 +57,15 @@ export default function Chat({ contato, etapa }) {
 
   useEffect(() => {
     let ativo = true;
-    setMsgs([]); setRespondendo(null); setErro("");
-    // As 300 mais recentes, em ordem cronológica.
-    supabase.from("mensagens").select(COLUNAS)
-      .eq("contato_id", contato.id).order("momento", { ascending: false }).limit(300)
+    setMsgs([]); setRespondendo(null); setErro(""); setTemMais(false); setIniciada(false);
+    // Só a página mais recente; as anteriores vêm ao rolar para cima.
+    maisRecentes(contato.id)
       .then(({ data, error }) => {
         if (!ativo) return;
         if (error) setErro("Não foi possível carregar as mensagens. Recarregue a página.");
         setMsgs((l) => ordenar([...(data ?? []), ...l.filter((x) => !(data ?? []).some((d) => d.id === x.id))]));
+        setTemMais((data?.length ?? 0) === PAGINA);
+        setIniciada(true);
       });
     supabase.from("respostas_rapidas").select("id, atalho, texto").order("ordem")
       .then(({ data }) => ativo && setRespostas(data ?? []));
@@ -78,7 +94,62 @@ export default function Chat({ contato, etapa }) {
     };
   }, [contato.id]);
 
-  useEffect(() => { const lista = fim.current?.parentElement; if (lista) lista.scrollTop = lista.scrollHeight; }, [msgs.length]);
+  // ---------------------------------------------------------------------
+  // Paginação: páginas de PAGINA mensagens, as mais antigas carregam ao chegar no topo.
+  // ---------------------------------------------------------------------
+  const ultimaId = msgs[msgs.length - 1]?.id;
+  // Mensagem nova no fim (ou a primeira página): desce até ela.
+  useEffect(() => {
+    const el = rolagem.current;
+    if (el && ajuste.current === null) el.scrollTop = el.scrollHeight;
+  }, [ultimaId]);
+
+  // Mensagens antigas entraram em cima: mantém na tela o que a pessoa estava lendo.
+  useLayoutEffect(() => {
+    const el = rolagem.current;
+    if (!el || ajuste.current === null) return;
+    el.scrollTop = el.scrollHeight - ajuste.current;
+    ajuste.current = null;
+    if (irDepois.current) { const id = irDepois.current; irDepois.current = null; irPara(id); }
+  }, [msgs]);
+
+  // Se a primeira página não enche a tela, não há como rolar: busca mais sozinho.
+  useEffect(() => {
+    const el = rolagem.current;
+    if (iniciada && temMais && el && el.scrollHeight <= el.clientHeight + 80) carregarAnteriores();
+  }, [iniciada, temMais, msgs.length]);
+
+  // Busca a página anterior à mensagem mais antiga da tela. `ate` (message_id) carrega até ela de uma vez.
+  async function carregarAnteriores(ate = null) {
+    const primeira = msgs.find((m) => !String(m.id).startsWith("local-"));
+    if (!primeira || carregando.current) return;
+    carregando.current = true;
+    setCarregandoMais(true);
+    const conversa = contato.id;
+    let q = supabase.from("mensagens").select(COLUNAS).eq("contato_id", conversa)
+      .or(`momento.lt."${primeira.momento}",and(momento.eq."${primeira.momento}",id.lt.${primeira.id})`)
+      .order("momento", { ascending: false }).order("id", { ascending: false });
+    if (ate) {
+      const { data: alvo } = await supabase.from("mensagens").select("momento")
+        .eq("contato_id", conversa).eq("message_id", ate).maybeSingle();
+      q = alvo ? q.gte("momento", alvo.momento).limit(1000) : q.limit(PAGINA);
+      if (alvo) irDepois.current = ate;
+    } else {
+      q = q.limit(PAGINA);
+    }
+    const { data } = await q;
+    carregando.current = false;
+    setCarregandoMais(false);
+    if (conversa !== contatoAtual.current) return; // trocou de conversa no meio
+    const el = rolagem.current;
+    ajuste.current = el ? el.scrollHeight - el.scrollTop : 0;
+    setMsgs((l) => ordenar([...(data ?? []).filter((d) => !l.some((x) => x.id === d.id)), ...l]));
+    if (!ate || !irDepois.current) setTemMais((data?.length ?? 0) === PAGINA);
+  }
+
+  function aoRolar(e) {
+    if (e.currentTarget.scrollTop < 150 && temMais && !carregando.current) carregarAnteriores();
+  }
 
   const porMessageId = useMemo(
     () => Object.fromEntries(msgs.filter((m) => m.message_id).map((m) => [m.message_id, m])), [msgs]);
@@ -89,7 +160,8 @@ export default function Chat({ contato, etapa }) {
 
   function irPara(messageId) {
     const el = document.getElementById(`msg-${messageId}`);
-    if (!el) return;
+    // Mensagem citada numa página que ainda não carregou: busca até ela e volta aqui.
+    if (!el) { if (temMais) carregarAnteriores(messageId); return; }
     el.scrollIntoView({ block: "center", behavior: "smooth" });
     setDestacada(messageId);
     setTimeout(() => setDestacada(null), 1500);
@@ -202,18 +274,32 @@ export default function Chat({ contato, etapa }) {
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="relative flex-1 min-h-0">
-      <div className={`h-full overflow-y-auto overscroll-contain px-2.5 md:px-4 pt-6 ${etapa ? "pb-12" : "pb-3"} space-y-1 bg-fundo`}
+      <div ref={rolagem} onScroll={aoRolar}
+        className={`h-full overflow-y-auto overscroll-contain px-2.5 md:px-4 pt-6 ${etapa ? "pb-12" : "pb-3"} space-y-1 bg-fundo`}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) arquivoEscolhido(f); }}>
-        {msgs.length === 0 && (
-          <p className="text-center text-sm text-tinta-suave py-8">Nenhuma mensagem ainda.</p>
+        {!iniciada && <EsqueletoBolhas />}
+        {iniciada && msgs.length === 0 && (
+          <p className="text-center text-sm text-tinta-suave py-8 animate-aparecer">Nenhuma mensagem ainda.</p>
+        )}
+        {/* Topo da conversa: carregando as antigas, ou início de tudo */}
+        {iniciada && msgs.length > 0 && (
+          <div className="flex justify-center h-8">
+            {carregandoMais ? <Girando />
+              : temMais ? (
+                <button type="button" onClick={() => carregarAnteriores()}
+                  className="text-xs px-3 rounded-full bg-superficie text-tinta-suave shadow-sm hover:text-tinta">
+                  Carregar mensagens anteriores
+                </button>
+              ) : <span className="text-[11px] text-tinta-suave self-center">Início da conversa</span>}
+          </div>
         )}
         {msgs.map((m) => {
           const dia = dataCurta(m.momento);
           const mostrarDia = dia !== diaAnterior;
           diaAnterior = dia;
           return (
-            <div key={m.id}>
+            <div key={m.id} className="animate-mensagem">
               {mostrarDia && (
                 <div className="flex justify-center my-2.5">
                   <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-superficie text-tinta-suave shadow-sm">{dia}</span>
@@ -225,7 +311,6 @@ export default function Chat({ contato, etapa }) {
             </div>
           );
         })}
-        <div ref={fim} />
       </div>
       {/* Onde o lead está no funil, sempre à vista no canto da conversa */}
       {etapa && (
@@ -257,11 +342,24 @@ export default function Chat({ contato, etapa }) {
         </div>
       )}
 
-      <Compositor contato={contato} grupo={contato.is_grupo} respostas={respostas} respondendo={respondendo} autorDe={autorDe}
-        sugestao={sugestao}
-        onCancelarResposta={() => setRespondendo(null)}
-        onTexto={enviarTexto} onArquivo={arquivoEscolhido} onFigurinha={enviarFigurinha}
-        onContato={() => setModal({ tipo: "contato" })} onEnquete={() => setModal({ tipo: "enquete" })} />
+      {contato.bloqueado ? (
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-superficie border-t border-linha text-sm">
+          <span className="flex-1 min-w-48 text-tinta-suave">
+            Você bloqueou {contato.is_grupo ? "este grupo" : "este contato"}. Mensagens novas não chegam ao CRM.
+          </span>
+          <button type="button" onClick={() => setModal({ tipo: "desbloquear" })}
+            className="h-9 px-4 rounded-lg bg-sol text-tinta font-semibold">Desbloquear</button>
+        </div>
+      ) : (
+        <Compositor contato={contato} grupo={contato.is_grupo} respostas={respostas} respondendo={respondendo} autorDe={autorDe}
+          sugestao={sugestao}
+          onCancelarResposta={() => setRespondendo(null)}
+          onTexto={enviarTexto} onArquivo={arquivoEscolhido} onFigurinha={enviarFigurinha}
+          onContato={() => setModal({ tipo: "contato" })} onEnquete={() => setModal({ tipo: "enquete" })} />
+      )}
+      {modal?.tipo === "desbloquear" && (
+        <ConfirmarAcaoContatos acao="desbloquear" ids={[contato.id]} onFechar={() => setModal(null)} />
+      )}
 
       {emAcao && (
         <AcoesMensagem m={emAcao} grupo={contato.is_grupo}
@@ -278,5 +376,12 @@ export default function Chat({ contato, etapa }) {
       {modal?.tipo === "contato" && <EnviarContato onFechar={() => setModal(null)} onEnviar={enviarContato} />}
       {modal?.tipo === "enquete" && <NovaEnquete onFechar={() => setModal(null)} onEnviar={enviarEnquete} />}
     </div>
+  );
+}
+
+function Girando() {
+  return (
+    <span role="status" aria-label="Carregando mensagens anteriores"
+      className="self-center h-5 w-5 rounded-full border-2 border-linha border-t-sol animate-spin" />
   );
 }
