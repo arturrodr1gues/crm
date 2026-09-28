@@ -22,8 +22,11 @@ export default function Hoje() {
       supabase.from("oportunidades").select("id, etapa, proximo_followup, contato:contatos(id, nome, telefone)")
         .lte("proximo_followup", fimDoDia(agora).toISOString())
         .not("etapa", "in", "(fechado,perdido)").order("proximo_followup"),
+      // Mensagens esperando: leads e conversas ainda não classificadas. Normal e bloqueado ficam de fora.
       supabase.from("contatos").select("id, nome, telefone, nao_lidas, ultima_mensagem, ultima_mensagem_em")
-        .gt("nao_lidas", 0).eq("is_grupo", false).order("ultima_mensagem_em", { ascending: false }),
+        .gt("nao_lidas", 0).eq("is_grupo", false).eq("bloqueado", false)
+        .or("tipo_contato.is.null,tipo_contato.eq.lead")
+        .order("ultima_mensagem_em", { ascending: false }),
       supabase.from("oportunidades").select("id, etapa, etapa_desde, contato:contatos(id, nome, telefone)")
         .eq("etapa", "proposta").lte("etapa_desde", limiteProposta).order("etapa_desde"),
       supabase.from("oportunidades").select("id", { count: "exact", head: true }).eq("etapa", "novo"),
