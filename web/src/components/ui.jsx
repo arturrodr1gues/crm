@@ -11,11 +11,12 @@ export function Modal({ titulo, onFechar, children, estreito }) {
   }, [onFechar]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-tinta/50 flex items-end md:items-center justify-center"
+    <div className="fixed inset-0 z-50 bg-tinta/50 flex items-end md:items-center justify-center animate-aparecer"
       onClick={onFechar}>
+      {/* Celular: sobe da borda de baixo. Computador: aparece crescendo no meio. */}
       <div role="dialog" aria-modal="true" aria-label={titulo}
         onClick={(e) => e.stopPropagation()}
-        className={`bg-superficie w-full ${estreito ? "md:max-w-xs" : "md:max-w-lg"} rounded-t-2xl md:rounded-2xl max-h-[92vh] overflow-y-auto`}
+        className={`bg-superficie w-full ${estreito ? "md:max-w-xs" : "md:max-w-lg"} rounded-t-2xl md:rounded-2xl max-h-[92vh] overflow-y-auto shadow-2xl animate-subir md:animate-escala`}
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <div className="flex items-center justify-between px-5 pt-5 pb-2">
           <h2 className="text-lg font-semibold">{titulo}</h2>
@@ -87,7 +88,7 @@ export function Flutuante({ ancora, onFechar, children, className = "", ...props
     <div ref={painel} {...props}
       onMouseDown={(e) => e.preventDefault()} // mantém o foco no campo
       style={pos ?? { visibility: "hidden", top: 0, left: 0 }}
-      className={`fixed z-[60] py-1 overflow-y-auto overscroll-contain rounded-xl bg-superficie border border-linha shadow-lg ${className}`}>
+      className={`fixed z-[60] py-1 overflow-y-auto overscroll-contain rounded-xl bg-superficie border border-linha shadow-lg ${pos ? "animate-menu" : ""} ${className}`}>
       {children}
     </div>,
     document.body,
@@ -254,11 +255,11 @@ export function PreviaImagem({ src, alt = "", onFechar }) {
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Imagem" onClick={onFechar}
-      className="fixed inset-0 z-50 bg-tinta/90 grid place-items-center p-4">
+      className="fixed inset-0 z-50 bg-tinta/90 grid place-items-center p-4 animate-aparecer">
       <button type="button" onClick={onFechar} aria-label="Fechar"
         className="absolute top-3 right-3 h-11 w-11 rounded-full bg-white/15 text-white text-3xl leading-none grid place-items-center">×</button>
       <img src={src} alt={alt} onClick={(e) => e.stopPropagation()}
-        className="max-h-full max-w-full rounded-lg object-contain shadow-2xl" />
+        className="max-h-full max-w-full rounded-lg object-contain shadow-2xl animate-escala" />
     </div>
   );
 }

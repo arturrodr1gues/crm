@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { dataCurta, hora } from "../lib/format";
 import { useUrlMidia } from "../lib/whatsapp";
 import { IconeFechar } from "./chat/Icones";
+import { Osso } from "./Esqueletos";
 
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 4;
@@ -94,7 +95,7 @@ export default function VisualizadorMidia({ itens, indice = 0, onMudar, onFechar
         {/* Área da mídia: com zoom, a foto passa do tamanho da janela e rola por dentro */}
         <div className="relative flex-1 min-h-0 flex flex-col bg-black/30">
           <div ref={area} className={`flex-1 min-h-0 flex p-3 ${ampliada ? "overflow-auto cursor-zoom-out" : "overflow-hidden"}`}>
-            {!url ? <span className="m-auto text-white/70 text-sm py-16">Carregando…</span>
+            {!url ? <Osso raio="rounded-lg" className="m-auto w-72 h-72 max-w-full opacity-25" />
               : !foto
                 ? <video key={url} src={url} controls autoPlay playsInline className="m-auto max-h-[calc(85vh-9rem)] max-w-full rounded-lg" />
                 : (

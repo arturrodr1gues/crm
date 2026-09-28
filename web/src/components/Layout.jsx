@@ -71,7 +71,10 @@ export default function Layout({ children }) {
       </aside>
 
       {/* Só o conteúdo rola; menu lateral e barra inferior ficam sempre no lugar */}
-      <main className={`flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain md:pb-0 ${naFichaDoCliente ? "" : "pb-20"}`}>{children}</main>
+      <main className={`flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain md:pb-0 ${naFichaDoCliente ? "" : "pb-20"}`}>
+        {/* Troca de página entra suave. A chave é a seção, então trocar de conversa não pisca. */}
+        <div key={pathname.split("/")[1]} className="h-full animate-entrada">{children}</div>
+      </main>
 
       {/* Botão flutuante no celular (escondido na conversa para não cobrir o campo de texto) */}
       {!naFichaDoCliente && <button onClick={() => setNovoAberto(true)} aria-label="Novo contato"
@@ -89,7 +92,7 @@ export default function Layout({ children }) {
               `relative flex flex-col items-center justify-center h-16 text-xs ${isActive ? "text-tinta font-semibold" : "text-tinta-suave"}`}>
             {({ isActive }) => (
               <>
-                {isActive && <span className="absolute top-0 h-1 w-10 rounded-b bg-sol" />}
+                {isActive && <span className="absolute top-0 h-1 w-10 rounded-b bg-sol animate-aparecer" />}
                 <i.icone className="w-6 h-6 mb-0.5" />
                 {i.nome}
                 {i.badge && naoLidas > 0 && <span className="absolute top-2 right-[28%]"><Badge n={naoLidas} /></span>}

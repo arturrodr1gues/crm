@@ -3,6 +3,7 @@ import { formatarTelefone, hora } from "../../lib/format";
 import { rotuloMensagem, tamanhoLegivel, useUrlMidia } from "../../lib/whatsapp";
 import { IconeDoc, IconeMenu, Tiques } from "./Icones";
 import VisualizadorMidia from "../VisualizadorMidia";
+import { Osso } from "../Esqueletos";
 
 const TIPOS_MIDIA = ["imagem", "video", "audio", "documento", "figurinha"];
 // Largura fixa das mídias, como no WhatsApp.
@@ -169,7 +170,14 @@ function Midia({ m, minha }) {
     // Mídia recebida é copiada para o Storage logo depois que chega.
     const antiga = Date.now() - new Date(m.momento).getTime() > 5 * 60 * 1000;
     const rotulo = `${rotuloMensagem({ ...m, texto: null })} · ${m.midia_path || !antiga ? "carregando…" : "indisponível"}`;
-    if (m.tipo === "audio") return <div className="w-56 text-sm italic opacity-70 py-1">{rotulo}</div>;
+    const chegando = m.midia_path || !antiga;
+    if (m.tipo === "audio") {
+      return chegando
+        ? <div className="w-56 flex items-center gap-2 py-1"><Osso redondo className="h-8 w-8 shrink-0" /><Osso className="h-2 flex-1" /></div>
+        : <div className="w-56 text-sm italic opacity-70 py-1">{rotulo}</div>;
+    }
+    // Ainda baixando: prévia no tamanho da mídia
+    if (chegando) return <Osso raio="rounded-lg" className={m.tipo === "figurinha" ? "w-28 h-28" : `${LARGURA_MIDIA} h-40`} />;
     return (
       <div className={`${m.tipo === "figurinha" ? "w-28 h-28" : `${LARGURA_MIDIA} h-40`} rounded-lg grid place-items-center text-xs italic text-center p-2 ${
         minha ? "bg-white/10 text-white/70" : "bg-fundo text-tinta-suave"}`}>{rotulo}</div>

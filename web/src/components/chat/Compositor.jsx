@@ -93,7 +93,7 @@ export default function Compositor({
       {painel === "anexo" && (<>
         {/* Clique fora fecha o menu */}
         <div className="fixed inset-0 z-10" onClick={() => setPainel(null)} />
-        <div role="menu" className="absolute z-20 bottom-full left-2 mb-1 w-48 py-1 rounded-xl bg-superficie border border-linha shadow-lg">
+        <div role="menu" className="absolute z-20 bottom-full left-2 mb-1 w-48 py-1 rounded-xl bg-superficie border border-linha shadow-lg animate-menu origin-bottom-left">
           {anexos.map(({ rotulo, Icone, cor, acao }) => (
             <button key={rotulo} type="button" role="menuitem" onClick={acao}
               className="w-full h-9 px-3 flex items-center gap-2.5 text-sm hover:bg-fundo">

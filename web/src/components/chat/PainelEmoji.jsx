@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useUrlMidia } from "../../lib/whatsapp";
 import { CATEGORIAS_EMOJI, emojisRecentes, guardarRecente } from "../../lib/emojis";
+import { EsqueletoMiniaturas } from "../Esqueletos";
 
 /**
  * Emojis por categoria, com os recentes no topo. Com `onFigurinha`, mostra também
@@ -55,7 +56,7 @@ function Figurinhas({ onEscolher }) {
       .then(({ data }) => setLista([...new Set((data ?? []).map((x) => x.midia_path))].slice(0, 30)));
   }, []);
 
-  if (!lista) return <p className="text-sm text-tinta-suave p-3">Carregando…</p>;
+  if (!lista) return <div className="p-3"><EsqueletoMiniaturas colunas="grid-cols-6" n={18} /></div>;
   if (!lista.length) {
     return <p className="text-sm text-tinta-suave p-3">As figurinhas que você receber aparecem aqui. Para mandar uma imagem como figurinha, use o clipe → Figurinha.</p>;
   }

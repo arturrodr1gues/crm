@@ -6,6 +6,7 @@ import { dataCurta, diasDesde, formatarTelefone, inicioDoDia, nomeOuTelefone } f
 import { buscarOportunidades, combina, semAcento } from "../lib/funil";
 import VisaoFunil from "../components/VisaoFunil";
 import { Selecao } from "../components/ui";
+import { EsqueletoTabela } from "../components/Esqueletos";
 
 const nomeDe = (lista, id) => lista.find((x) => x.id === id)?.nome ?? "";
 
@@ -86,7 +87,7 @@ export default function FunilTabela() {
 
   const ordenarPor = (id) => setOrdem((o) => ({ coluna: id, sobe: o.coluna === id ? !o.sobe : true }));
 
-  if (!ops) return <div className="p-6 text-tinta-suave">Carregando…</div>;
+  if (!ops) return <EsqueletoTabela />;
 
   return (
     <div className="pt-6 h-full flex flex-col">

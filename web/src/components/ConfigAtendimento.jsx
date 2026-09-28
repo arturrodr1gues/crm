@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import { BotaoPrimario, BotaoSecundario, Campo, Entrada, Modal, Selecao } from "./ui";
 import { IconeAlca } from "./GerenciadorFunil";
 import { VARIAVEIS, aplicarVariaveis, duracaoCurta, recarregarConfig, useAtendimentoConfig } from "../lib/atendimento";
+import { EsqueletoLinhas } from "./Esqueletos";
 
 const OPCOES_SLA = [15, 30, 45, 60, 90, 120, 180, 240, 480];
 const OPCOES_FOLLOWUP = [2, 4, 6, 8, 12, 24, 48, 72];
@@ -100,7 +101,7 @@ function MensagensRapidas({ respostas, onMudou }) {
   return (
     <Cartao titulo="Mensagens rápidas"
       descricao="Atalhos que aparecem acima do campo de mensagem. Use {primeiro_nome} ou {nome} para já sair com o nome do contato.">
-      {!respostas ? <p className="text-sm text-tinta-suave">Carregando…</p> : (
+      {!respostas ? <EsqueletoLinhas n={3} foto={false} /> : (
         <div className="mb-4"><ListaMensagensRapidas respostas={respostas} onMudou={onMudou} onEditar={setEditando} /></div>
       )}
       <BotaoSecundario type="button" onClick={() => setEditando({})}>Nova mensagem rápida</BotaoSecundario>

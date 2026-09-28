@@ -5,6 +5,7 @@ import { nomeTipo, TIPOS_AGENDA } from "../lib/constantes";
 import { inicioDoDia, nomeOuTelefone } from "../lib/format";
 import { usePreferencia } from "../lib/preferencias";
 import EventoForm from "../components/EventoForm";
+import { EsqueletoAgenda } from "../components/Esqueletos";
 
 const HORA_PX = 48;
 const DURACAO_PADRAO = 60; // minutos, para compromisso sem horário de término
@@ -177,7 +178,7 @@ export default function Agenda() {
         </div>
       )}
 
-      {!itens ? <div className="text-tinta-suave">Carregando…</div>
+      {!itens ? <EsqueletoAgenda visao={visao} />
         : dias ? <GradeHoras dias={dias} eventos={itens} onAbrir={setForm} onNovo={novo} onDia={(d) => irPara(d, "dia")} />
         : visao === "mes" ? <VisaoMes refMes={ref} eventos={itens} onAbrir={setForm} onNovo={novo} onDia={(d) => irPara(d, "dia")} />
         : <VisaoAno ano={ref.getFullYear()} eventos={itens} onDia={(d) => irPara(d, "dia")} onMes={(d) => irPara(d, "mes")} />}
@@ -259,7 +260,7 @@ function GradeHoras({ dias, eventos, onAbrir, onNovo, onDia }) {
   }, [primeiro, dias.length]);
 
   return (
-    <div ref={rolagem} className="flex-1 min-h-80 overflow-y-auto bg-superficie border border-linha rounded-2xl">
+    <div ref={rolagem} className="flex-1 min-h-80 overflow-y-auto bg-superficie border border-linha rounded-2xl animate-aparecer">
       <div className="sticky top-0 z-20 flex bg-superficie border-b border-linha">
         <div className="w-12 md:w-14 shrink-0" />
         {dias.map((d) => {
@@ -357,7 +358,7 @@ function VisaoMes({ refMes, eventos, onAbrir, onNovo, onDia }) {
   const hoje = new Date();
 
   return (
-    <div className="flex-1 min-h-[34rem] flex flex-col bg-superficie border border-linha rounded-2xl overflow-hidden">
+    <div className="flex-1 min-h-[34rem] flex flex-col bg-superficie border border-linha rounded-2xl overflow-hidden animate-aparecer">
       <div className="grid grid-cols-7 border-b border-linha">
         {NOMES_DIA.map((n) => (
           <div key={n} className="py-2 text-center text-[11px] uppercase font-medium text-tinta-suave">{n}</div>
@@ -411,7 +412,7 @@ function ChipEvento({ e, onAbrir }) {
 function VisaoAno({ ano, eventos, onDia, onMes }) {
   const porDia = agrupar(eventos);
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto">
+    <div className="flex-1 min-h-0 overflow-y-auto animate-aparecer">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {Array.from({ length: 12 }, (_, m) => (
           <MiniMes key={m} mes={new Date(ano, m, 1)} porDia={porDia} onDia={onDia} onMes={onMes} />

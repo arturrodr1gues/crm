@@ -13,6 +13,58 @@
   --color-sol-escuro: #B37D00;
   --color-ok: #1F8A70;
   --color-alerta: #C8372D;
+
+  /* Animações (classes animate-*) */
+  --animate-aparecer: aparecer 0.2s ease-out both;
+  --animate-entrada: entrada 0.25s ease-out both;
+  --animate-subir: subir 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-escala: escala 0.18s ease-out both;
+  --animate-menu: menu 0.14s ease-out both;
+  --animate-mensagem: mensagem 0.22s ease-out both;
+
+  @keyframes aparecer { from { opacity: 0; } }
+  @keyframes entrada { from { opacity: 0; transform: translateY(6px); } }
+  @keyframes subir { from { transform: translateY(100%); } }
+  @keyframes escala { from { opacity: 0; transform: translateY(6px) scale(0.97); } }
+  @keyframes menu { from { opacity: 0; transform: translateY(-4px) scale(0.98); } }
+  @keyframes mensagem { from { opacity: 0; transform: translateY(8px); } }
+  @keyframes brilho { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+}
+
+/* Skeleton: bloco cinza com um brilho passando, no formato do conteúdo que vai chegar */
+@utility osso {
+  display: block;
+  background-image: linear-gradient(90deg,
+    var(--color-linha) 0%,
+    color-mix(in srgb, var(--color-linha) 35%, var(--color-superficie)) 50%,
+    var(--color-linha) 100%);
+  background-size: 200% 100%;
+  animation: brilho 1.4s ease-in-out infinite;
+}
+
+@layer base {
+  /* Tudo que é clicável mostra a mãozinha */
+  button:not(:disabled), a[href], summary, select,
+  [role="button"], [role="tab"], [role="option"], [role="checkbox"], [role="menuitem"], [role="switch"],
+  input[type="checkbox"], input[type="radio"], input[type="file"], input[type="color"], input[type="range"],
+  label:has(> input[type="checkbox"], > input[type="radio"], > input[type="file"]) {
+    cursor: pointer;
+  }
+  button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
+  /* Cards que se arrastam no funil */
+  [aria-roledescription="sortable"] { cursor: grab; }
+  [aria-roledescription="sortable"]:active { cursor: grabbing; }
+
+  /* Mudanças de cor e borda suaves em vez de "piscar" */
+  button, a, [role="button"], [role="tab"], [role="option"], [role="checkbox"], input, select, textarea {
+    transition-property: color, background-color, border-color, box-shadow, opacity, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
+  }
+  /* Botão "afunda" ao ser clicado (linhas de lista e cards arrastáveis ficam de fora) */
+  button:not(:disabled):not([role="checkbox"]):not([role="option"]):not([role="tab"]):not([aria-roledescription]):active {
+    scale: 0.97;
+  }
 }
 
 html, body, #root { height: 100%; }

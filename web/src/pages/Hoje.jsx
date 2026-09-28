@@ -5,6 +5,7 @@ import { DIAS_ALERTA_PROPOSTA, nomeTipo } from "../lib/constantes";
 import { nomeEtapa, useEtapas } from "../lib/etapas";
 import { diaSemana, diasDesde, fimDoDia, hora, inicioDoDia, nomeOuTelefone, quando } from "../lib/format";
 import { Vazio } from "../components/ui";
+import { EsqueletoHoje } from "../components/Esqueletos";
 
 export default function Hoje() {
   useEtapas(); // nomes das etapas vêm do gerenciador do funil
@@ -44,7 +45,7 @@ export default function Hoje() {
     carregar();
   }
 
-  if (!d) return <div className="p-6 text-tinta-suave">Carregando…</div>;
+  if (!d) return <EsqueletoHoje />;
 
   const pendencias = d.retornos.length + d.conversas.length + d.paradas.length;
 

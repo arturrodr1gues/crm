@@ -17,6 +17,7 @@ import { buscarOportunidades, combina } from "../lib/funil";
 import { BotaoPrimario, BotaoSecundario, Campo, Entrada, Modal } from "../components/ui";
 import GerenciadorFunil, { IconeAlca, IconeCadeado } from "../components/GerenciadorFunil";
 import VisaoFunil from "../components/VisaoFunil";
+import { EsqueletoFunil } from "../components/Esqueletos";
 
 // Depois de arrastar, o navegador ainda dispara um clique no card: esse clique não deve abrir a conversa.
 let ultimoArraste = 0;
@@ -176,7 +177,7 @@ export default function Funil() {
       [k, ids.filter((id) => ops[id] && combina(ops[id], termo))]));
   }, [colunas, ops, busca]);
 
-  if (!ops) return <div className="p-6 text-tinta-suave">Carregando…</div>;
+  if (!ops) return <EsqueletoFunil />;
 
   const emAndamento = Object.values(ops).filter((o) => tipoEtapa(o.etapa) === "aberta").length;
   const encontrados = Object.values(visiveis).reduce((s, l) => s + l.length, 0);
@@ -310,7 +311,7 @@ function Cartao({ o, etapa, proxima, campos, onAvancar }) {
   return (
     <li ref={setNodeRef} {...attributes} {...listeners}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={`bg-superficie rounded-xl border border-linha p-3 cursor-grab active:cursor-grabbing touch-manipulation select-none ${isDragging ? "opacity-30" : ""}`}>
+      className={`bg-superficie rounded-xl border border-linha p-3 cursor-grab active:cursor-grabbing transition-[box-shadow,translate,border-color] duration-150 hover:shadow-md hover:-translate-y-0.5 hover:border-tinta-suave/30 touch-manipulation select-none ${isDragging ? "opacity-30" : ""}`}>
       <ConteudoCartao o={o} etapa={etapa} proxima={proxima} campos={campos} onAvancar={onAvancar} />
     </li>
   );

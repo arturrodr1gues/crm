@@ -4,6 +4,7 @@ import { ETAPAS, ORIGENS } from "../lib/constantes";
 import { duracaoCurta } from "../lib/atendimento";
 import { usePreferencia } from "../lib/preferencias";
 import { Vazio } from "../components/ui";
+import { EsqueletoDashboard } from "../components/Esqueletos";
 
 // ---------------------------------------------------------------------
 // Períodos
@@ -162,7 +163,7 @@ export default function Dashboard() {
       </div>
 
       {erro ? <AvisoErro erro={erro} />
-        : !dados ? <p className="text-tinta-suave">Carregando…</p>
+        : !dados ? <EsqueletoDashboard />
         : <Paineis d={dados.atual} ant={dados.anterior} agrupar={agrupar} />}
     </div>
   );

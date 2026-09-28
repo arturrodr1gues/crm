@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { EditarMensagem, ListaMensagensRapidas } from "../components/ConfigAtendimento";
+import { EsqueletoLinhas } from "../components/Esqueletos";
 
 /** Página das mensagens rápidas (também ficam em Ajustes). `?nova=1` já abre o formulário de nova mensagem. */
 export default function MensagensRapidas() {
@@ -36,7 +37,7 @@ export default function MensagensRapidas() {
         </button>
       </header>
 
-      {respostas === null ? <p className="text-tinta-suave">Carregando…</p>
+      {respostas === null ? <div className="bg-superficie rounded-2xl border border-linha px-4"><EsqueletoLinhas n={5} foto={false} /></div>
         : <ListaMensagensRapidas respostas={respostas} onMudou={carregar} onEditar={setEditando} />}
 
       {/* Espera a lista carregar para a nova mensagem entrar no fim */}

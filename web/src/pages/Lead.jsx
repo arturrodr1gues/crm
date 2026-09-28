@@ -7,6 +7,7 @@ import { estadoAtendimento, useAgora, useAtendimentoConfig } from "../lib/atendi
 import { SeloSla } from "../components/SelosAtendimento";
 import { ConteudoConversa } from "../components/DetalhesConversa";
 import { CardAgenda, CardDados, CardIndicacoes, CardVenda, SemOportunidade, SeletorTipo } from "../components/FichaCliente";
+import { EsqueletoLead } from "../components/Esqueletos";
 
 /**
  * Página do lead: a mesma ficha do painel da conversa, em tela cheia.
@@ -31,7 +32,7 @@ export default function Lead() {
       </div>
     );
   }
-  if (!contato) return <div className="p-6 text-tinta-suave">Carregando…</div>;
+  if (!contato) return <EsqueletoLead />;
   // Grupo não tem ficha: a página dele é a conversa.
   if (contato.is_grupo) return <Navigate to={`/conversas/${contato.id}`} replace />;
 
