@@ -11,6 +11,7 @@ import DetalhesConversa from "../components/DetalhesConversa";
 import { Ficha, SeletorTipo } from "../components/FichaCliente";
 import { estadoAtendimento, useAgora, useAtendimentoConfig } from "../lib/atendimento";
 import { SeloSla } from "../components/SelosAtendimento";
+import { EsqueletoConversa } from "../components/Esqueletos";
 
 export default function Contato() {
   useEtapas(); // nome da etapa no cabeçalho acompanha o gerenciador do funil
@@ -54,7 +55,7 @@ export default function Contato() {
       </div>
     );
   }
-  if (!contato) return comLista(<div className="p-6 text-tinta-suave">Carregando…</div>);
+  if (!contato) return comLista(<EsqueletoConversa />);
 
   // Um painel só: detalhes da conversa com a ficha do cliente dentro (grupo não tem ficha).
   const grupo = contato.is_grupo;
@@ -82,6 +83,9 @@ export default function Contato() {
             </span>
           </span>
         </button>
+        {contato.bloqueado && (
+          <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full bg-alerta/10 text-alerta font-semibold">Bloqueado</span>
+        )}
         {contato.conversa_fechada && (
           <span className="shrink-0 hidden sm:inline text-[11px] px-2 py-0.5 rounded-full bg-linha text-tinta-suave font-medium">Encerrada</span>
         )}

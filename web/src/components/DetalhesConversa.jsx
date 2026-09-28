@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { dataCurta, formatarTelefone, nomeOuTelefone } from "../lib/format";
 import { tamanhoLegivel, useUrlMidia } from "../lib/whatsapp";
 import { IconeDoc } from "./chat/Icones";
 import VisualizadorMidia from "./VisualizadorMidia";
+import ConfirmarAcaoContatos from "./ConfirmarAcaoContatos";
+import { EsqueletoLinhas, EsqueletoMiniaturas } from "./Esqueletos";
 
 const LINK = /https?:\/\/[^\s<>"')]+/gi;
 
@@ -36,8 +38,47 @@ export default function DetalhesConversa({ contato, children }) {
       {children}
 
       <ConteudoConversa contato={contato} />
+
+      <AcoesDoContato contato={contato} />
     </div>
   );
+}
+
+// Bloquear e excluir, no fim do painel como no WhatsApp
+function AcoesDoContato({ contato }) {
+  const [confirmar, setConfirmar] = useState(null);
+  const navigate = useNavigate();
+  const nome = contato.is_grupo ? "grupo" : "contato";
+  const botao = "w-full h-12 px-4 flex items-center gap-3 text-left font-medium text-alerta hover:bg-fundo";
+  return (
+    <section className="bg-superficie mt-2 border-y border-linha divide-y divide-linha">
+      <button type="button" onClick={() => setConfirmar(contato.bloqueado ? "desbloquear" : "bloquear")}
+        className={contato.bloqueado ? botao.replace("text-alerta", "text-tinta") : botao}>
+        <IconeBloquear className="w-5 h-5 shrink-0" />
+        {contato.bloqueado ? `Desbloquear ${nome}` : `Bloquear ${nome}`}
+      </button>
+      <button type="button" onClick={() => setConfirmar("excluir")} className={botao}>
+        <IconeLixeira className="w-5 h-5 shrink-0" />
+        Excluir {nome}
+      </button>
+      {confirmar && (
+        <ConfirmarAcaoContatos acao={confirmar} ids={[contato.id]} onFechar={() => setConfirmar(null)}
+          onFeito={() => confirmar === "excluir" && navigate("/conversas")} />
+      )}
+    </section>
+  );
+}
+
+function IconeBloquear(p) {
+  return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}>
+    <circle cx="12" cy="12" r="9" /><path d="m5.6 5.6 12.8 12.8" />
+  </svg>);
+}
+
+function IconeLixeira(p) {
+  return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+  </svg>);
 }
 
 /**
@@ -112,17 +153,17 @@ export function ConteudoConversa({ contato, cartao = false, colunas = "grid-cols
         </div>
 
         <div className="p-2">
-          {aba === "midia" && (midias === null ? <Carregando /> : midias.length === 0 ? <Vazio>Nenhuma foto ou vídeo ainda.</Vazio> : (
+          {aba === "midia" && (midias === null ? <EsqueletoMiniaturas colunas={colunas} /> : midias.length === 0 ? <Vazio>Nenhuma foto ou vídeo ainda.</Vazio> : (
             <div className={`grid ${colunas} gap-1`}>
               {midias.map((m, i) => <Miniatura key={m.id} m={m} onClick={() => setAberta(i)} />)}
             </div>
           ))}
 
-          {aba === "arquivos" && (arquivos === null ? <Carregando /> : arquivos.length === 0 ? <Vazio>Nenhum arquivo ainda.</Vazio> : (
+          {aba === "arquivos" && (arquivos === null ? <EsqueletoLinhas n={3} className="px-2" /> : arquivos.length === 0 ? <Vazio>Nenhum arquivo ainda.</Vazio> : (
             <ul className="divide-y divide-linha">{arquivos.map((a) => <Arquivo key={a.id} a={a} />)}</ul>
           ))}
 
-          {aba === "links" && (links === null ? <Carregando /> : links.length === 0 ? <Vazio>Nenhum link ainda.</Vazio> : (
+          {aba === "links" && (links === null ? <EsqueletoLinhas n={3} foto={false} className="px-2" /> : links.length === 0 ? <Vazio>Nenhum link ainda.</Vazio> : (
             <ul className="divide-y divide-linha">
               {links.map((l) => (
                 <li key={l.id} className="px-2 py-2">
@@ -159,7 +200,6 @@ export function ConteudoConversa({ contato, cartao = false, colunas = "grid-cols
   );
 }
 
-const Carregando = () => <p className="text-sm text-tinta-suave p-3">Carregando…</p>;
 const Vazio = ({ children }) => <p className="text-sm text-tinta-suave p-3 text-center">{children}</p>;
 
 function Miniatura({ m, onClick }) {

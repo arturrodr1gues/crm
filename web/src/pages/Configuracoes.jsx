@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { BotaoPrimario, BotaoSecundario, Campo, Entrada } from "../components/ui";
 import ConfigAtendimento from "../components/ConfigAtendimento";
+import ContatosBloqueados from "../components/ContatosBloqueados";
 import NovaSenha from "../components/NovaSenha";
+import { EsqueletoConfiguracoes } from "../components/Esqueletos";
 
 // Enquanto o QR Code está na tela, consulta o status até o celular conectar.
 const INTERVALO_STATUS_MS = 3000;
@@ -44,7 +46,7 @@ export default function Configuracoes() {
     return () => clearInterval(t);
   }, [status]);
 
-  if (!info && !erro) return <div className="p-6 text-tinta-suave">Carregando…</div>;
+  if (!info && !erro) return <EsqueletoConfiguracoes />;
 
   return (
     <div className="max-w-3xl mx-auto px-4 md:px-8 pt-6 pb-8">
@@ -68,6 +70,8 @@ export default function Configuracoes() {
       )}
 
       <ConfigAtendimento />
+
+      <ContatosBloqueados />
 
       <Cartao titulo="Sua senha">
         <NovaSenha />

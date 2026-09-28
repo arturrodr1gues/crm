@@ -1,18 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { nomeOuTelefone, quando, soDigitos } from "../lib/format";
 import { estadoAtendimento, useAgora, useAtendimentoConfig } from "../lib/atendimento";
 import { usePreferencia } from "../lib/preferencias";
 import { SeloEtapa } from "./ui";
 import { SeloFollowup, SeloSla } from "./SelosAtendimento";
+import ConfirmarAcaoContatos from "./ConfirmarAcaoContatos";
+import { EsqueletoListaConversas } from "./Esqueletos";
 
 const COLUNAS = "id, nome, telefone, ultima_mensagem, ultima_mensagem_em, nao_lidas, is_grupo, " +
   "tipo_contato, conversa_fechada, aguardando_resposta_desde, aguardando_cliente_desde, oportunidades(etapa, created_at)";
 
 /**
  * Lista de conversas em tempo real: abas Em aberto / Fechadas, busca e filtros
- * (não lidas, leads, SLA crítico, follow-up).
+ * (não lidas, leads, SLA crítico, follow-up). "Selecionar" liga a seleção para bloquear
+ * ou excluir várias de uma vez. Bloqueados não aparecem aqui: ficam em Ajustes.
  * `lateral`: versão compacta com rolagem própria, para ficar ao lado do chat no computador.
  * `onRecolher`: mostra o botão que esconde a lista.
  */
@@ -23,6 +26,10 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
   const aba = abaSalva === "fechadas" ? "fechadas" : "abertas"; // "leads" (aba antiga) virou filtro
   const [filtro, setFiltro] = useState(abaSalva === "leads" ? "leads" : "todas"); // todas | nao_lidas | leads | sla | followup
   const [contagem, setContagem] = useState({ sla: 0, followup: 0 });
+  const [selecionando, setSelecionando] = useState(false);
+  const [selecao, setSelecao] = useState(() => new Set());
+  const [confirmar, setConfirmar] = useState(null); // bloquear | excluir
+  const navigate = useNavigate();
   const config = useAtendimentoConfig();
   const agora = useAgora();
 
@@ -30,11 +37,13 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
   const limiteSla = new Date(agora - config.sla_resposta_min * 60_000).toISOString();
   const limiteFollowup = new Date(agora - config.followup_horas * 3_600_000).toISOString();
   // SLA e follow-up só valem para leads em aberto.
-  const soLeadsAbertos = (q) => q.eq("conversa_fechada", false).eq("tipo_contato", "lead");
+  const soLeadsAbertos = (q) => q.eq("conversa_fechada", false).eq("tipo_contato", "lead").eq("bloqueado", false);
+  const f = aba === "fechadas" ? "todas" : filtro;
 
   async function carregar() {
     let q = supabase.from("contatos").select(COLUNAS)
       .not("ultima_mensagem_em", "is", null)
+      .eq("bloqueado", false) // bloqueados só aparecem em Ajustes
       .eq("conversa_fechada", aba === "fechadas")
       .limit(100);
     const t = busca.trim();
@@ -42,7 +51,6 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
       const d = soDigitos(t);
       q = d.length >= 4 ? q.ilike("telefone", `%${d}%`) : q.ilike("nome", `%${t}%`);
     }
-    const f = aba === "fechadas" ? "todas" : filtro;
     if (f === "nao_lidas") q = q.gt("nao_lidas", 0);
     if (f === "leads") q = q.eq("tipo_contato", "lead");
     if (f === "sla") q = q.eq("tipo_contato", "lead").lt("aguardando_resposta_desde", limiteSla);
@@ -78,6 +86,21 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
     return () => { supabase.removeChannel(canal); };
   }, [lateral]);
 
+  // Trocar de aba ou filtro começa uma seleção nova.
+  useEffect(() => { setSelecao(new Set()); }, [aba, filtro]);
+
+  const escolhidos = (lista ?? []).filter((c) => selecao.has(c.id)).map((c) => c.id);
+  const todasMarcadas = !!lista?.length && escolhidos.length === lista.length;
+  function alternar(id) {
+    setSelecao((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+  function sairDaSelecao() { setSelecionando(false); setSelecao(new Set()); }
+  function acaoFeita() {
+    if (confirmar === "excluir" && escolhidos.includes(ativa)) navigate("/conversas");
+    sairDaSelecao();
+    carregar();
+  }
+
   const campo = lateral ? "h-10 text-sm" : "h-12";
   const filtros = [
     ["todas", "Todas"],
@@ -91,7 +114,12 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
     <div className={lateral ? "flex flex-col h-full min-h-0" : ""}>
       <div className={lateral ? "px-3 pt-4 pb-2 border-b border-linha" : "mb-3"}>
         <div className={`flex items-center justify-between ${lateral ? "mb-3 px-1" : "mb-4"}`}>
-          <h1 className={lateral ? "text-xl font-bold" : "text-3xl font-bold"}>Conversas</h1>
+          <h1 className={`flex-1 ${lateral ? "text-xl font-bold" : "text-3xl font-bold"}`}>Conversas</h1>
+          <button type="button" onClick={() => (selecionando ? sairDaSelecao() : setSelecionando(true))}
+            aria-pressed={selecionando}
+            className={`h-8 px-2.5 rounded-lg text-sm font-medium ${selecionando ? "bg-tinta text-white" : "text-tinta-suave hover:bg-fundo"}`}>
+            {selecionando ? "Cancelar" : "Selecionar"}
+          </button>
           {onRecolher && (
             <button type="button" onClick={onRecolher} aria-label="Recolher conversas" title="Recolher conversas"
               className="h-8 w-8 -mr-1 grid place-items-center rounded-lg text-tinta-suave hover:bg-fundo">
@@ -128,10 +156,33 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
             ))}
           </div>
         )}
+
+        {/* Ações em massa */}
+        {selecionando && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 p-1.5 rounded-lg bg-tinta text-white">
+            <button type="button" onClick={() => setSelecao(todasMarcadas ? new Set() : new Set(lista.map((c) => c.id)))}
+              disabled={!lista?.length}
+              className="h-8 px-2 rounded-md text-[13px] font-medium hover:bg-white/10 disabled:opacity-50">
+              {todasMarcadas ? "Desmarcar todas" : "Selecionar todas"}
+            </button>
+            <span className="flex-1 min-w-16 text-[13px] text-white/70">
+              {escolhidos.length === 1 ? "1 selecionada" : `${escolhidos.length} selecionadas`}
+            </span>
+            <button type="button" disabled={!escolhidos.length}
+              onClick={() => setConfirmar("bloquear")}
+              className="h-8 px-2.5 rounded-md bg-white/15 text-[13px] font-semibold hover:bg-white/25 disabled:opacity-40">
+              Bloquear
+            </button>
+            <button type="button" disabled={!escolhidos.length} onClick={() => setConfirmar("excluir")}
+              className="h-8 px-2.5 rounded-md bg-alerta text-[13px] font-semibold hover:brightness-110 disabled:opacity-40">
+              Excluir
+            </button>
+          </div>
+        )}
       </div>
 
       <div className={lateral ? "flex-1 min-h-0 overflow-y-auto" : ""}>
-        {!lista ? <p className="text-tinta-suave p-4">Carregando…</p> : lista.length === 0 ? (
+        {!lista ? <EsqueletoListaConversas lateral={lateral} /> : lista.length === 0 ? (
           <p className="text-tinta-suave py-8 px-4 text-center text-sm">
             {busca ? "Nenhuma conversa encontrada."
               : aba === "fechadas" ? "Nenhuma conversa encerrada. Use \"Encerrar\" no topo da conversa quando o atendimento terminar."
@@ -145,15 +196,23 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
           <ul className={lateral ? "divide-y divide-linha" : "bg-superficie rounded-2xl border border-linha divide-y divide-linha"}>
             {lista.map((c) => {
               const { sla, followup } = estadoAtendimento(c, config, agora);
-              return (
-                <li key={c.id}>
-                  <Link to={`/conversas/${c.id}`} aria-current={c.id === ativa ? "page" : undefined}
-                    className={`flex items-center gap-3 ${lateral ? "px-3 py-2.5" : "px-4 py-3"} ${
-                      c.id === ativa ? "bg-fundo" : lateral ? "hover:bg-fundo/60" : ""} ${sla?.critico ? "border-l-4 border-alerta" : ""}`}>
-                    <div className={`${lateral ? "h-10 w-10" : "h-11 w-11"} shrink-0 rounded-full grid place-items-center font-semibold ${
+              const marcada = selecao.has(c.id);
+              const tamanho = lateral ? "h-10 w-10" : "h-11 w-11";
+              const classe = `w-full text-left flex items-center gap-3 ${lateral ? "px-3 py-2.5" : "px-4 py-3"} ${
+                marcada ? "bg-sol/15" : c.id === ativa && !selecionando ? "bg-fundo" : lateral ? "hover:bg-fundo/60" : ""} ${
+                sla?.critico ? "border-l-4 border-alerta" : ""}`;
+              const conteudo = (
+                <>
+                  {selecionando ? (
+                    // Na seleção, a foto vira a caixa de marcar
+                    <span className={`${tamanho} shrink-0 rounded-full grid place-items-center text-lg font-bold ${
+                      marcada ? "bg-sol text-tinta" : "border-2 border-linha bg-superficie"}`}>{marcada && "✓"}</span>
+                  ) : (
+                    <div className={`${tamanho} shrink-0 rounded-full grid place-items-center font-semibold ${
                       c.is_grupo ? "bg-linha text-tinta" : "bg-tinta text-white"}`}>
                       {c.is_grupo ? <IconeGrupo className="w-5 h-5" /> : (c.nome || "?").trim().charAt(0).toUpperCase()}
                     </div>
+                  )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className={`truncate ${lateral ? "text-[15px]" : ""} ${c.nao_lidas ? "font-semibold" : "font-medium"}`}>{nomeOuTelefone(c)}</span>
@@ -173,13 +232,29 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
                         <EtapaDoFunil ops={c.oportunidades} />
                       </div>
                     </div>
-                  </Link>
+                </>
+              );
+              return (
+                <li key={c.id} className="animate-entrada">
+                  {selecionando ? (
+                    <button type="button" role="checkbox" aria-checked={marcada} onClick={() => alternar(c.id)} className={classe}>
+                      {conteudo}
+                    </button>
+                  ) : (
+                    <Link to={`/conversas/${c.id}`} aria-current={c.id === ativa ? "page" : undefined} className={classe}>
+                      {conteudo}
+                    </Link>
+                  )}
                 </li>
               );
             })}
           </ul>
         )}
       </div>
+
+      {confirmar && (
+        <ConfirmarAcaoContatos acao={confirmar} ids={escolhidos} onFechar={() => setConfirmar(null)} onFeito={acaoFeita} />
+      )}
     </div>
   );
 }

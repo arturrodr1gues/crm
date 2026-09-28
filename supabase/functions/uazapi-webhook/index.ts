@@ -59,15 +59,18 @@ Deno.serve(async (req) => {
 
   // 1) Localiza a conversa pelo chat ou (só em conversa individual) pelo telefone
   let { data: contato } = await supabase
-    .from("contatos").select("id, nome, telefone, whatsapp_chatid")
+    .from("contatos").select("id, nome, telefone, whatsapp_chatid, bloqueado")
     .eq("whatsapp_chatid", m.chatId).maybeSingle();
 
   if (!contato && m.telefone && !m.isGroup) {
     // Celular pode estar cadastrado com o 9 e chegar sem ele (ou o contrário).
     ({ data: contato } = await supabase
-      .from("contatos").select("id, nome, telefone, whatsapp_chatid")
+      .from("contatos").select("id, nome, telefone, whatsapp_chatid, bloqueado")
       .in("telefone", variantesTelefone(m.telefone)).limit(1).maybeSingle());
   }
+
+  // Contato bloqueado: a mensagem não entra no CRM (200 para a UAZAPI não reenviar).
+  if (contato?.bloqueado) return ok("ignorado: contato bloqueado");
 
   // 2) Cria a conversa nova. Ela só entra no funil quando alguém marca "Novo lead" na conversa.
   if (!contato) {
@@ -78,7 +81,7 @@ Deno.serve(async (req) => {
       whatsapp_chatid: m.chatId,
       origem: "whatsapp",
       is_grupo: m.isGroup,
-    }).select("id, nome, telefone, whatsapp_chatid").single();
+    }).select("id, nome, telefone, whatsapp_chatid, bloqueado").single();
 
     if (error) {
       console.error("erro ao criar contato", error);

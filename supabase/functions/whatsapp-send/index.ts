@@ -68,8 +68,9 @@ Deno.serve(async (req) => {
 
 async function novaMensagem(cfg: UazapiConfig, userId: string, acao: string, body: any) {
   const { data: contato } = await admin.from("contatos")
-    .select("id, telefone, whatsapp_chatid, consentimento_lgpd, is_grupo").eq("id", body.contato_id ?? "").maybeSingle();
+    .select("id, telefone, whatsapp_chatid, consentimento_lgpd, is_grupo, bloqueado").eq("id", body.contato_id ?? "").maybeSingle();
   if (!contato) throw new ErroEntrada("contato não encontrado", 404);
+  if (contato.bloqueado) throw new ErroEntrada("Contato bloqueado. Desbloqueie para voltar a conversar.", 409);
 
   const destino = contato.whatsapp_chatid ?? contato.telefone;
   if (!destino) throw new ErroEntrada("contato sem WhatsApp cadastrado");
