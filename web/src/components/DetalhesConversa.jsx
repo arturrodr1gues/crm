@@ -7,6 +7,7 @@ import { IconeDoc } from "./chat/Icones";
 import VisualizadorMidia from "./VisualizadorMidia";
 import ConfirmarAcaoContatos from "./ConfirmarAcaoContatos";
 import { EsqueletoLinhas, EsqueletoMiniaturas } from "./Esqueletos";
+import FotoContato from "./FotoContato";
 
 const LINK = /https?:\/\/[^\s<>"')]+/gi;
 
@@ -19,10 +20,7 @@ export default function DetalhesConversa({ contato, children }) {
     <div className="bg-fundo min-h-full">
       {/* Foto à esquerda, nome e número no meio, botão da página do lead à direita */}
       <section className="bg-superficie px-4 py-4 border-b border-linha grid grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-2 items-center gap-x-2.5">
-        <div className={`row-span-2 h-12 w-12 rounded-full grid place-items-center text-xl font-semibold ${
-          contato.is_grupo ? "bg-linha text-tinta" : "bg-tinta text-white"}`}>
-          {contato.is_grupo ? "👥" : (contato.nome || "?").trim().charAt(0).toUpperCase()}
-        </div>
+        <div className="row-span-2"><FotoContato contato={contato} className="h-12 w-12" texto="text-xl" /></div>
         <h2 className="self-end text-base font-semibold truncate">{contato.is_grupo ? contato.nome || "Grupo sem nome" : nomeOuTelefone(contato)}</h2>
         {!contato.is_grupo && (
           // A mesma ficha em tela cheia, para quem prefere ver o lead fora da conversa

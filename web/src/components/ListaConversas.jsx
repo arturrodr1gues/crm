@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { nomeOuTelefone, quando, soDigitos } from "../lib/format";
+import { chamarWhatsapp } from "../lib/whatsapp";
+import FotoContato from "./FotoContato";
 import { estadoAtendimento, useAgora, useAtendimentoConfig } from "../lib/atendimento";
 import { usePreferencia } from "../lib/preferencias";
 import { SeloEtapa } from "./ui";
@@ -9,8 +11,15 @@ import { SeloFollowup, SeloSla } from "./SelosAtendimento";
 import ConfirmarAcaoContatos from "./ConfirmarAcaoContatos";
 import { EsqueletoListaConversas } from "./Esqueletos";
 
-const COLUNAS = "id, nome, telefone, ultima_mensagem, ultima_mensagem_em, nao_lidas, is_grupo, " +
+const COLUNAS = "id, nome, telefone, ultima_mensagem, ultima_mensagem_em, nao_lidas, is_grupo, foto_path, foto_em, " +
   "tipo_contato, conversa_fechada, aguardando_resposta_desde, aguardando_cliente_desde, oportunidades(etapa, created_at)";
+
+// Contatos por página: a lista começa com 10 e busca mais 10 ao chegar no fim.
+const PAGINA = 10;
+// Foto de perfil é buscada de novo depois desse tempo (a pessoa pode ter trocado).
+const VALIDADE_FOTO_MS = 3 * 24 * 3600 * 1000;
+// Contatos que já pediram foto nesta visita, para não repetir a cada recarga da lista.
+const fotosPedidas = new Set();
 
 /**
  * Lista de conversas em tempo real: abas Em aberto / Fechadas, busca e filtros
@@ -29,6 +38,9 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
   const [selecionando, setSelecionando] = useState(false);
   const [selecao, setSelecao] = useState(() => new Set());
   const [confirmar, setConfirmar] = useState(null); // bloquear | excluir
+  const [limite, setLimite] = useState(PAGINA);
+  const [temMais, setTemMais] = useState(false);
+  const fimDaLista = useRef(null);
   const navigate = useNavigate();
   const config = useAtendimentoConfig();
   const agora = useAgora();
@@ -45,7 +57,7 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
       .not("ultima_mensagem_em", "is", null)
       .eq("bloqueado", false) // bloqueados só aparecem em Ajustes
       .eq("conversa_fechada", aba === "fechadas")
-      .limit(100);
+      .limit(limite);
     const t = busca.trim();
     if (t) {
       const d = soDigitos(t);
@@ -67,23 +79,53 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
         .lt("aguardando_cliente_desde", limiteFollowup),
     ]);
     setLista(data ?? []);
+    setTemMais((data?.length ?? 0) === limite);
     setContagem({ sla: sla.count ?? 0, followup: followup.count ?? 0 });
+    pedirFotos(data ?? []);
   }
 
-  // Recarrega ao mudar filtro/busca e a cada minuto (os prazos de SLA e follow-up andam sozinhos).
+  // Foto de perfil só dos contatos que estão na tela (no máximo uma página por pedido).
+  function pedirFotos(contatos) {
+    const vencidas = contatos.filter((c) => !fotosPedidas.has(c.id)
+      && (!c.foto_em || Date.now() - new Date(c.foto_em).getTime() > VALIDADE_FOTO_MS));
+    for (let i = 0; i < vencidas.length; i += PAGINA) {
+      const ids = vencidas.slice(i, i + PAGINA).map((c) => c.id);
+      ids.forEach((id) => fotosPedidas.add(id));
+      chamarWhatsapp({ acao: "atualizar_contatos", ids }).catch(() => ids.forEach((id) => fotosPedidas.delete(id)));
+    }
+  }
+
+  // Busca/aba/filtro novos começam de novo na primeira página.
+  useEffect(() => { setLimite(PAGINA); }, [busca, aba, filtro]);
+
+  // Recarrega ao mudar filtro/busca/página e a cada minuto (os prazos de SLA e follow-up andam sozinhos).
   useEffect(() => {
     const id = setTimeout(carregar, 200);
     return () => clearTimeout(id);
-  }, [busca, aba, filtro, agora, config.sla_resposta_min, config.followup_horas]);
+  }, [busca, aba, filtro, limite, agora, config.sla_resposta_min, config.followup_horas]);
+
+  // Chegou no fim da lista: próxima página.
+  useEffect(() => {
+    const alvo = fimDaLista.current;
+    if (!alvo || !temMais) return;
+    const obs = new IntersectionObserver(([e]) => e.isIntersecting && setLimite((l) => l + PAGINA), { rootMargin: "200px" });
+    obs.observe(alvo);
+    return () => obs.disconnect();
+  }, [temMais, lista]);
 
   // Tempo real: o canal fica aberto e sempre chama a versão atual de carregar (com os filtros de agora).
+  // Várias mudanças juntas (ex.: fotos de uma página chegando) viram uma recarga só.
   const recarregar = useRef(carregar);
   recarregar.current = carregar;
   useEffect(() => {
+    let espera;
     const canal = supabase.channel(`lista-conversas-${lateral ? "lateral" : "pagina"}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "contatos" }, () => recarregar.current())
+      .on("postgres_changes", { event: "*", schema: "public", table: "contatos" }, () => {
+        clearTimeout(espera);
+        espera = setTimeout(() => recarregar.current(), 300);
+      })
       .subscribe();
-    return () => { supabase.removeChannel(canal); };
+    return () => { clearTimeout(espera); supabase.removeChannel(canal); };
   }, [lateral]);
 
   // Trocar de aba ou filtro começa uma seleção nova.
@@ -208,10 +250,7 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
                     <span className={`${tamanho} shrink-0 rounded-full grid place-items-center text-lg font-bold ${
                       marcada ? "bg-sol text-tinta" : "border-2 border-linha bg-superficie"}`}>{marcada && "✓"}</span>
                   ) : (
-                    <div className={`${tamanho} shrink-0 rounded-full grid place-items-center font-semibold ${
-                      c.is_grupo ? "bg-linha text-tinta" : "bg-tinta text-white"}`}>
-                      {c.is_grupo ? <IconeGrupo className="w-5 h-5" /> : (c.nome || "?").trim().charAt(0).toUpperCase()}
-                    </div>
+                    <FotoContato contato={c} className={tamanho} />
                   )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -250,6 +289,15 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
             })}
           </ul>
         )}
+        {/* Fim da página: ao aparecer na tela, busca os próximos 10 */}
+        {temMais && (
+          <div ref={fimDaLista} className="py-3 flex justify-center">
+            <button type="button" onClick={() => setLimite((l) => l + PAGINA)}
+              className="text-xs px-3 h-7 rounded-full bg-superficie border border-linha text-tinta-suave hover:text-tinta">
+              Carregar mais conversas
+            </button>
+          </div>
+        )}
       </div>
 
       {confirmar && (
@@ -263,10 +311,4 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
 function EtapaDoFunil({ ops }) {
   const atual = [...(ops ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
   return atual ? <SeloEtapa etapa={atual.etapa} /> : null;
-}
-
-function IconeGrupo(p) {
-  return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
-    <circle cx="9" cy="8" r="3" /><path d="M3 20a6 6 0 0 1 12 0" /><path d="M16 5.5a3 3 0 0 1 0 5M21 20a6 6 0 0 0-4-5.6" />
-  </svg>);
 }

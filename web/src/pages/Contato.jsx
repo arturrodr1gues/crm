@@ -12,6 +12,7 @@ import { Ficha, SeletorTipo } from "../components/FichaCliente";
 import { estadoAtendimento, useAgora, useAtendimentoConfig } from "../lib/atendimento";
 import { SeloSla } from "../components/SelosAtendimento";
 import { EsqueletoConversa } from "../components/Esqueletos";
+import FotoContato from "../components/FotoContato";
 
 export default function Contato() {
   useEtapas(); // nome da etapa no cabeçalho acompanha o gerenciador do funil
@@ -72,10 +73,7 @@ export default function Contato() {
         <Link to="/conversas" className="md:hidden h-10 w-10 -ml-2 grid place-items-center text-2xl" aria-label="Voltar">‹</Link>
         {/* Tocar no nome abre os detalhes, como no WhatsApp */}
         <button type="button" onClick={abrirDetalhes} className="min-w-0 flex-1 flex items-center gap-3 text-left">
-          <span className={`h-10 w-10 shrink-0 rounded-full grid place-items-center font-semibold ${
-            grupo ? "bg-linha text-tinta" : "bg-tinta text-white"}`}>
-            {grupo ? "👥" : (contato.nome || "?").trim().charAt(0).toUpperCase()}
-          </span>
+          <FotoContato contato={contato} className="h-10 w-10" />
           <span className="min-w-0">
             <span className="block font-semibold truncate">{grupo ? contato.nome || "Grupo sem nome" : nomeOuTelefone(contato)}</span>
             <span className="block text-sm text-tinta-suave truncate">

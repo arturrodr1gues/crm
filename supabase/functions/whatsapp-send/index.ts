@@ -3,10 +3,12 @@
 // Mensagens novas (acao):  texto · midia · contato · enquete
 // Sobre uma mensagem já existente:  reagir · editar · apagar · votar (enquete)
 // Conversa:  marcar_lidas (manda o "visto" para quem escreveu)
+// Contatos:  atualizar_contatos (foto de perfil de até 10 contatos por vez)
 
 import { admin, lerConfig, type UazapiConfig } from "../_shared/config.ts";
+import { fotoDoUltimoWebhook, salvarFotoPerfil } from "../_shared/fotos.ts";
 import {
-  apagarMensagem, editarMensagem, enviarContato, enviarEnquete, enviarMidia, enviarTexto,
+  apagarMensagem, detalhesChat, editarMensagem, enviarContato, enviarEnquete, enviarMidia, enviarTexto,
   marcarLidas, reagir, type TipoMidiaUazapi,
 } from "../_shared/uazapi.ts";
 
@@ -54,6 +56,7 @@ Deno.serve(async (req) => {
   try {
     if (["reagir", "editar", "apagar", "votar"].includes(acao)) return json(await sobreMensagem(cfg, acao, body));
     if (acao === "marcar_lidas") return json(await marcarConversaLida(cfg, body.contato_id));
+    if (acao === "atualizar_contatos") return json(await atualizarContatos(cfg, body.ids));
     return await novaMensagem(cfg, user.id, acao, body);
   } catch (e) {
     if (e instanceof ErroEntrada) return json({ error: e.message }, e.status);
@@ -234,6 +237,38 @@ async function sobreMensagem(cfg: UazapiConfig, acao: string, body: any) {
 
   const { data: atual } = await admin.from("mensagens").select().eq("id", msg.id).single();
   return { mensagem: atual };
+}
+
+// ---------------------------------------------------------------------
+// Foto de perfil e nome da agenda: a lista de conversas pede para os contatos que
+// estão na tela (10 por vez). O link da foto expira, então ela é copiada para o Storage.
+// ---------------------------------------------------------------------
+
+const MAX_CONTATOS = 10;
+
+async function atualizarContatos(cfg: UazapiConfig, ids: unknown) {
+  const lista = (Array.isArray(ids) ? ids : []).filter((x) => typeof x === "string").slice(0, MAX_CONTATOS);
+  if (!lista.length) return { atualizados: 0 };
+  const { data: contatos } = await admin.from("contatos")
+    .select("id, nome, nome_editado, is_grupo, telefone, whatsapp_chatid, bloqueado, foto_path").in("id", lista);
+
+  const feitos = await Promise.all((contatos ?? []).filter((c) => !c.bloqueado).map(async (c) => {
+    const numero = c.whatsapp_chatid ?? c.telefone;
+    if (!numero) return false;
+    try {
+      const d = await detalhesChat(cfg, numero);
+      // Nome igual ao da agenda do celular conectado (se a equipe não trocou no CRM)
+      const extra = !c.is_grupo && !c.nome_editado && d.nomeAgenda && d.nomeAgenda !== c.nome ? { nome: d.nomeAgenda } : {};
+      return await salvarFotoPerfil(c, d.foto, extra);
+    } catch (e) {
+      // WhatsApp fora do ar (ex.: desconectado): usa o link que veio no último webhook desse chat.
+      // Se nem isso der, o contato não é marcado e tenta de novo na próxima vez.
+      console.warn("foto de perfil: chat/details", c.id, e);
+      const url = await fotoDoUltimoWebhook(c.id, c.whatsapp_chatid);
+      return url ? await salvarFotoPerfil(c, url) : false;
+    }
+  }));
+  return { atualizados: feitos.filter(Boolean).length };
 }
 
 // ---------------------------------------------------------------------

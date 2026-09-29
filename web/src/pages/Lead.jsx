@@ -8,6 +8,7 @@ import { SeloSla } from "../components/SelosAtendimento";
 import { ConteudoConversa } from "../components/DetalhesConversa";
 import { CardAgenda, CardDados, CardIndicacoes, CardVenda, SemOportunidade, SeletorTipo } from "../components/FichaCliente";
 import { EsqueletoLead } from "../components/Esqueletos";
+import FotoContato from "../components/FotoContato";
 
 /**
  * Página do lead: a mesma ficha do painel da conversa, em tela cheia.
@@ -55,9 +56,7 @@ export default function Lead() {
         <div className="max-w-6xl mx-auto px-4 md:px-6 py-3 flex flex-wrap items-center gap-x-3 gap-y-2">
           <button type="button" onClick={voltar} aria-label="Voltar" title="Voltar"
             className="h-10 w-10 -ml-2 grid place-items-center rounded-lg text-2xl hover:bg-fundo">‹</button>
-          <span className="h-11 w-11 shrink-0 rounded-full grid place-items-center font-semibold text-lg bg-tinta text-white">
-            {(contato.nome || "?").trim().charAt(0).toUpperCase()}
-          </span>
+          <FotoContato contato={contato} className="h-11 w-11" texto="text-lg" />
           <div className="min-w-0 flex-1">
             <h1 className="text-lg md:text-xl font-semibold truncate">{nomeOuTelefone(contato)}</h1>
             <p className="text-sm text-tinta-suave truncate">{formatarTelefone(contato.telefone) || "Sem telefone"}</p>
