@@ -5,6 +5,7 @@
 
 import { admin as supabase, lerConfig, type UazapiConfig } from "../_shared/config.ts";
 import { interpretarWebhook, linkDaMidia, type MensagemNormalizada } from "../_shared/uazapi.ts";
+import { fotoVencida, salvarFotoPerfil } from "../_shared/fotos.ts";
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
@@ -57,15 +58,16 @@ Deno.serve(async (req) => {
     if (data?.length) return ok();
   }
 
-  // 1) Localiza a conversa pelo chat ou (só em conversa individual) pelo telefone
+  // 1) Localiza a conversa pelo chat (qualquer um dos ids dele) ou, só em conversa
+  //    individual, pelo telefone da conversa
   let { data: contato } = await supabase
-    .from("contatos").select("id, nome, telefone, whatsapp_chatid, bloqueado")
-    .eq("whatsapp_chatid", m.chatId).maybeSingle();
+    .from("contatos").select("id, nome, nome_editado, telefone, whatsapp_chatid, bloqueado, foto_path, foto_em")
+    .in("whatsapp_chatid", m.idsChat).limit(1).maybeSingle();
 
   if (!contato && m.telefone && !m.isGroup) {
     // Celular pode estar cadastrado com o 9 e chegar sem ele (ou o contrário).
     ({ data: contato } = await supabase
-      .from("contatos").select("id, nome, telefone, whatsapp_chatid, bloqueado")
+      .from("contatos").select("id, nome, nome_editado, telefone, whatsapp_chatid, bloqueado, foto_path, foto_em")
       .in("telefone", variantesTelefone(m.telefone)).limit(1).maybeSingle());
   }
 
@@ -75,13 +77,14 @@ Deno.serve(async (req) => {
   // 2) Cria a conversa nova. Ela só entra no funil quando alguém marca "Novo lead" na conversa.
   if (!contato) {
     const { data: novo, error } = await supabase.from("contatos").insert({
-      // Em grupo o nome é o do grupo, então vale mesmo quando fui eu quem escreveu.
-      nome: m.fromMe && !m.isGroup ? null : m.nomeContato,
+      // Em grupo o nome é o do grupo. Pessoa: nome da agenda do celular conectado; sem ele, o do
+      // perfil (que só vale quando foi a pessoa quem escreveu, senão seria o meu nome).
+      nome: m.isGroup ? m.nomeContato : m.nomeAgenda ?? (m.fromMe ? null : m.nomeContato),
       telefone: m.telefone,
       whatsapp_chatid: m.chatId,
       origem: "whatsapp",
       is_grupo: m.isGroup,
-    }).select("id, nome, telefone, whatsapp_chatid, bloqueado").single();
+    }).select("id, nome, nome_editado, telefone, whatsapp_chatid, bloqueado, foto_path, foto_em").single();
 
     if (error) {
       console.error("erro ao criar contato", error);
@@ -96,10 +99,20 @@ Deno.serve(async (req) => {
     if (m.isGroup) {
       // Acompanha quando o grupo é renomeado.
       if (m.nomeContato && m.nomeContato !== contato.nome) patch.nome = m.nomeContato;
+    } else if (m.nomeAgenda && !contato.nome_editado && m.idsChat.includes(contato.whatsapp_chatid)) {
+      // Acompanha o nome da agenda do celular, a não ser que a equipe tenha trocado no CRM.
+      if (m.nomeAgenda !== contato.nome) patch.nome = m.nomeAgenda;
     } else if (!contato.nome && !m.fromMe && m.nomeContato) {
       patch.nome = m.nomeContato;
     }
     if (Object.keys(patch).length) await supabase.from("contatos").update(patch).eq("id", contato.id);
+  }
+
+  // Foto de perfil: o link vem junto com a mensagem. Copia se o contato ainda não tem
+  // ou se a última está velha (depois da resposta, para não segurar a fila).
+  if (m.fotoChat && fotoVencida(contato)) {
+    const tarefa = salvarFotoPerfil(contato, m.fotoChat);
+    if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(tarefa); else await tarefa;
   }
 
   // 3) Grava a mensagem (message_id único evita duplicados em reenvios)

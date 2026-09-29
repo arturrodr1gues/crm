@@ -11,8 +11,11 @@ export type TipoMensagem =
 type Origem = {
   messageId: string;
   chatId: string;            // id do chat como a UAZAPI entrega (grupo termina em @g.us)
+  idsChat: string[];         // chatId e os outros ids do mesmo chat (telefone e "@lid")
   telefone: string | null;   // só dígitos, quando disponível (sempre null em grupo)
   nomeContato: string | null; // nome da pessoa ou, em grupo, nome do grupo
+  nomeAgenda: string | null;  // nome salvo na agenda do número conectado (só conversa individual)
+  fotoChat: string | null;    // link (temporário) da foto do chat que veio junto no webhook
   autorNome: string | null;  // só em grupo: quem escreveu
   autorTelefone: string | null;
   autor: string;             // chave de quem agiu (reação/voto): "eu" ou telefone/id do remetente
@@ -134,23 +137,35 @@ export function interpretarWebhook(body: any): EventoWhatsApp | null {
     msg.sender_pn, msg.senderPn, sender.endsWith("@s.whatsapp.net") ? sender : undefined,
   );
 
-  // Em grupo, o telefone de quem escreveu é do participante, não da conversa.
-  const telefone = isGroup ? null : telefoneDe(
-    msg.sender_pn, msg.senderPn, msg.wa_chatid,
-    chatId.endsWith("@s.whatsapp.net") ? chatId : undefined,
-    body?.chat?.phone, body?.chat?.wa_chatid,
-  );
-
   const fromMe = Boolean(primeiro(msg.fromMe, msg.key?.fromMe) ?? false);
   const ts = Number(primeiro(msg.messageTimestamp, msg.timestamp, body?.timestamp) ?? 0);
+
+  // Telefone da CONVERSA, não de quem mandou: primeiro o próprio chat. O remetente só vale
+  // quando foi a pessoa quem escreveu; em mensagem minha o remetente é o número conectado,
+  // e usar ele juntava conversas diferentes no mesmo contato.
+  // Em grupo, o telefone de quem escreveu é do participante, não da conversa.
+  const telefone = isGroup ? null : telefoneDe(
+    chatId.endsWith("@s.whatsapp.net") ? chatId : undefined,
+    body?.chat?.wa_chatid, body?.chat?.phone, msg.wa_chatid,
+    fromMe ? undefined : msg.sender_pn, fromMe ? undefined : msg.senderPn,
+  );
+
+  // O mesmo chat pode chegar com o id de telefone (@s.whatsapp.net) ou o id "@lid".
+  const idsChat = [...new Set([chatId, texto(body?.chat?.wa_chatid), texto(body?.chat?.wa_chatlid)]
+    .filter((x): x is string => !!x))];
 
   const o: Origem = {
     messageId: String(primeiro(msg.messageid, msg.messageId, msg.id, msg.key?.id) ?? crypto.randomUUID()),
     chatId,
+    idsChat,
     telefone,
+    // Pessoa: primeiro o nome da agenda do celular conectado, depois o nome do perfil dela.
     nomeContato: ((isGroup
       ? primeiro(body?.chat?.name, body?.chat?.wa_name, body?.chat?.wa_contactName, msg.groupName)
-      : primeiro(msg.senderName, msg.pushName, body?.chat?.name, body?.chat?.wa_name)) as string) ?? null,
+      : primeiro(body?.chat?.wa_contactName, msg.senderName, msg.pushName, body?.chat?.name, body?.chat?.wa_name)) as string) ?? null,
+    nomeAgenda: isGroup ? null : texto(body?.chat?.wa_contactName),
+    fotoChat: [body?.chat?.imagePreview, body?.chat?.image]
+      .find((u): u is string => typeof u === "string" && u.startsWith("http")) ?? null,
     autorNome: isGroup ? (primeiro(msg.senderName, msg.pushName) as string) ?? telefoneRemetente : null,
     autorTelefone: isGroup ? telefoneRemetente : null,
     autor: fromMe ? "eu" : String(primeiro(telefoneRemetente, telefone, sender, chatId)),
@@ -323,6 +338,21 @@ export async function linkDaMidia(cfg: UazapiConfig, id: string) {
   return {
     url: (primeiro(data?.fileURL, data?.fileUrl, data?.url) as string) ?? null,
     mime: (primeiro(data?.mimetype, data?.mimeType) as string) ?? null,
+  };
+}
+
+
+/**
+ * Dados do chat no WhatsApp: foto (`imagePreview`/`image`, link temporário),
+ * nome salvo na agenda do número conectado (`wa_contactName`) e nome do perfil (`wa_name`).
+ */
+export async function detalhesChat(cfg: UazapiConfig, number: string) {
+  const d = await chamar(cfg, "POST", "/chat/details", { number, preview: true });
+  return {
+    foto: (primeiro(d?.imagePreview, d?.image) as string) || null,
+    nomeAgenda: texto(d?.wa_contactName),
+    nomePerfil: texto(d?.wa_name),
+    nome: texto(d?.name),
   };
 }
 
