@@ -22,10 +22,10 @@ export default function Hoje() {
       supabase.from("oportunidades").select("id, etapa, proximo_followup, contato:contatos(id, nome, telefone)")
         .lte("proximo_followup", fimDoDia(agora).toISOString())
         .not("etapa", "in", "(fechado,perdido)").order("proximo_followup"),
-      // Mensagens esperando: leads e conversas ainda não classificadas. Normal e bloqueado ficam de fora.
+      // Mensagens esperando: só de leads. Normal, não classificada e bloqueado ficam de fora
+      // (essas continuam em Conversas).
       supabase.from("contatos").select("id, nome, telefone, nao_lidas, ultima_mensagem, ultima_mensagem_em")
-        .gt("nao_lidas", 0).eq("is_grupo", false).eq("bloqueado", false)
-        .or("tipo_contato.is.null,tipo_contato.eq.lead")
+        .gt("nao_lidas", 0).eq("is_grupo", false).eq("bloqueado", false).eq("tipo_contato", "lead")
         .order("ultima_mensagem_em", { ascending: false }),
       supabase.from("oportunidades").select("id, etapa, etapa_desde, contato:contatos(id, nome, telefone)")
         .eq("etapa", "proposta").lte("etapa_desde", limiteProposta).order("etapa_desde"),
@@ -90,7 +90,7 @@ export default function Hoje() {
       </Secao>
 
       <Secao titulo="Mensagens sem resposta">
-        {d.conversas.length === 0 ? <Vazio>Nenhuma mensagem esperando.</Vazio> : (
+        {d.conversas.length === 0 ? <Vazio>Nenhum lead esperando resposta.</Vazio> : (
           <ul className="divide-y divide-linha">
             {d.conversas.map((c) => (
               <LinhaContato key={c.id} id={c.id} titulo={nomeOuTelefone(c)} sub={c.ultima_mensagem}
