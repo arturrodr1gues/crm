@@ -212,8 +212,11 @@ export function CardDados({ contato, onSalvo }) {
   async function salvar(e) {
     e.preventDefault(); setErro("");
     const consumo = f.consumo_kwh ? Number(f.consumo_kwh) : null;
+    const nome = f.nome.trim() || null;
     const { error } = await supabase.from("contatos").update({
-      nome: f.nome.trim() || null,
+      nome,
+      // Nome trocado aqui vale mais que o da agenda do WhatsApp; apagar o nome volta a usar o da agenda.
+      ...(nome !== (contato.nome ?? null) ? { nome_editado: !!nome } : {}),
       telefone: normalizarTelefone(f.telefone),
       bairro: f.bairro.trim() || null,
       cidade: f.cidade.trim() || null,

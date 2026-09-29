@@ -24,6 +24,7 @@ export default function NovoContato({ onFechar }) {
     const consumo = f.consumo_kwh ? Number(f.consumo_kwh) : null;
     const { data: contato, error } = await supabase.from("contatos").insert({
       nome: f.nome.trim() || null,
+      nome_editado: !!f.nome.trim(), // nome digitado aqui não é trocado pelo da agenda do WhatsApp
       telefone,
       bairro: f.bairro.trim() || null,
       cidade: f.cidade.trim() || null,
