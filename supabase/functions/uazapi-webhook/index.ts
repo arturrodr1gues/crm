@@ -4,7 +4,8 @@
 // Deploy com: supabase functions deploy uazapi-webhook --no-verify-jwt
 
 import { admin as supabase, lerConfig, type UazapiConfig } from "../_shared/config.ts";
-import { interpretarWebhook, linkDaMidia, type MensagemNormalizada } from "../_shared/uazapi.ts";
+import { interpretarConexao, interpretarWebhook, linkDaMidia, type MensagemNormalizada } from "../_shared/uazapi.ts";
+import { estadoDe, registrarConexao } from "../_shared/conexao.ts";
 import { fotoVencida, salvarFotoPerfil } from "../_shared/fotos.ts";
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
@@ -24,9 +25,20 @@ Deno.serve(async (req) => {
   let body: unknown;
   try { body = await req.json(); } catch { return ok("ignorado: json inválido"); }
 
+  // WhatsApp conectou/caiu: vai para a bolinha de Conversas e o histórico em Ajustes.
+  const conexao = interpretarConexao(body);
+  if (conexao) {
+    await registrarConexao(estadoDe(conexao.status), "webhook", { motivo: conexao.motivo, momento: conexao.momento });
+    return ok();
+  }
+
   const ev = interpretarWebhook(body);
   // Sempre 200 para eventos ignorados, senão a UAZAPI fica reenviando.
   if (!ev) return ok("ignorado");
+
+  // Chegou mensagem: o WhatsApp está no ar (só grava se antes estava fora).
+  const confirmar = registrarConexao("online", "webhook");
+  if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(confirmar); else await confirmar;
 
   // Atualizações de mensagens que já estão no CRM
   switch (ev.kind) {

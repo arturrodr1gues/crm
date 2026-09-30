@@ -103,6 +103,21 @@ const ESTADOS: Record<string, StatusRecibo | "apagada"> = {
 };
 
 /**
+ * Evento "connection" do webhook (o WhatsApp conectou, caiu ou está reconectando).
+ * Devolve null se não for esse evento.
+ */
+export function interpretarConexao(body: any) {
+  const evento = String(primeiro(body?.EventType, body?.event?.EventType, typeof body?.event === "string" ? body.event : undefined, body?.type) ?? "").toLowerCase();
+  if (evento !== "connection") return null;
+  const inst = body?.instance ?? body?.data?.instance ?? body?.data ?? body?.event ?? {};
+  return {
+    status: String(primeiro(inst.status, body?.status, body?.state, inst.state) ?? "").toLowerCase(),
+    motivo: texto(primeiro(inst.lastDisconnectReason, body?.reason, inst.reason)),
+    momento: primeiro(inst.lastDisconnect, body?.timestamp) ?? null,
+  };
+}
+
+/**
  * Interpreta o webhook da UAZAPI. É defensivo de propósito: aceita variações
  * de nome de campo e ignora o que não reconhece. Retorna null para eventos
  * que o CRM não usa.
@@ -211,6 +226,10 @@ export function interpretarWebhook(body: any): EventoWhatsApp | null {
     return null; // outras mensagens de sistema (mensagens temporárias, sincronização etc.)
   }
 
+  // Várias fotos juntas: o WhatsApp manda um aviso "Album: N images" e depois cada foto
+  // como mensagem própria. O aviso não é mensagem de verdade; as fotos chegam sozinhas.
+  if (t.includes("album")) return null;
+
   const tipo = tipoDaMensagem(t);
   let corpo = texto(primeiro(
     msg.text, msg.body, c.text, c.caption, c.Caption,
@@ -219,6 +238,15 @@ export function interpretarWebhook(body: any): EventoWhatsApp | null {
   ));
 
   let extra: Record<string, unknown> | null = null;
+  // Localização: vira um link do Google Maps para abrir direto.
+  if (t.includes("location")) {
+    const lat = Number(primeiro(c.degreesLatitude, c.DegreesLatitude, c.latitude));
+    const lng = Number(primeiro(c.degreesLongitude, c.DegreesLongitude, c.longitude));
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      const nome = texto(primeiro(c.name, c.Name, c.address, c.Address));
+      corpo = `📍 ${nome ? `${nome}\n` : "Localização\n"}https://maps.google.com/?q=${lat},${lng}`;
+    }
+  }
   if (tipo === "contato") {
     const lista = Array.isArray(c.contacts) ? c.contacts : [c];
     const nome = texto(primeiro(lista[0]?.displayName, lista[0]?.DisplayName, corpo)) ?? "Contato";
@@ -283,8 +311,9 @@ export async function chamar(cfg: UazapiConfig, method: "GET" | "POST", path: st
   try { data = bruto ? JSON.parse(bruto) : {}; } catch { /* resposta não é JSON */ }
   if (!res.ok) {
     console.warn("UAZAPI", method, path, res.status, bruto.slice(0, 300));
-    const motivo = data?.error ?? data?.message ?? (bruto.slice(0, 120) || "sem detalhes");
-    throw new ErroUazapi(`HTTP ${res.status}: ${typeof motivo === "string" ? motivo : JSON.stringify(motivo)}`, res.status);
+    // A UAZAPI às vezes manda { error: true, message: "..." }: o texto útil é o que for string.
+    const motivo = [data?.error, data?.message].find((x) => typeof x === "string" && x) ?? (bruto.slice(0, 120) || "sem detalhes");
+    throw new ErroUazapi(`HTTP ${res.status}: ${motivo}`, res.status);
   }
   return data;
 }
@@ -347,9 +376,10 @@ export async function linkDaMidia(cfg: UazapiConfig, id: string) {
  * nome salvo na agenda do número conectado (`wa_contactName`) e nome do perfil (`wa_name`).
  */
 export async function detalhesChat(cfg: UazapiConfig, number: string) {
-  const d = await chamar(cfg, "POST", "/chat/details", { number, preview: true });
+  // Foto em tamanho cheio (dá para ampliar no CRM); a miniatura fica de reserva.
+  const d = await chamar(cfg, "POST", "/chat/details", { number, preview: false });
   return {
-    foto: (primeiro(d?.imagePreview, d?.image) as string) || null,
+    foto: (primeiro(d?.image, d?.imagePreview) as string) || null,
     nomeAgenda: texto(d?.wa_contactName),
     nomePerfil: texto(d?.wa_name),
     nome: texto(d?.name),
@@ -397,7 +427,8 @@ export const configurarWebhook = (cfg: UazapiConfig, url: string) =>
   chamar(cfg, "POST", "/webhook", {
     enabled: true,
     url,
-    events: ["messages", "messages_update"], // mensagens + entrega/leitura/exclusão
+    // mensagens + entrega/leitura/exclusão + conectou/desconectou (histórico da conexão)
+    events: ["messages", "messages_update", "connection"],
     // Mensagens que o próprio CRM envia já são gravadas pelo whatsapp-send.
     excludeMessages: ["wasSentByApi"],
   });
@@ -405,7 +436,7 @@ export const configurarWebhook = (cfg: UazapiConfig, url: string) =>
 /** O webhook cadastrado ainda serve? (versões antigas excluíam grupos ou não recebiam recibos de leitura) */
 export const webhookAtual = (w: { enabled?: boolean; events?: string[]; excludeMessages?: string[] }) =>
   Boolean(w.enabled) &&
-  ["messages", "messages_update"].every((e) => (w.events ?? []).includes(e)) &&
+  ["messages", "messages_update", "connection"].every((e) => (w.events ?? []).includes(e)) &&
   !(w.excludeMessages ?? []).includes("isGroupYes");
 
 export async function lerWebhook(cfg: UazapiConfig) {

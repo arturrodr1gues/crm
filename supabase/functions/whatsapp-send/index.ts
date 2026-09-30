@@ -4,12 +4,14 @@
 // Sobre uma mensagem já existente:  reagir · editar · apagar · votar (enquete)
 // Conversa:  marcar_lidas (manda o "visto" para quem escreveu)
 // Contatos:  atualizar_contatos (foto de perfil de até 10 contatos por vez)
+// Conexão:   verificar_conexao (confere se o WhatsApp está no ar)
 
 import { admin, lerConfig, type UazapiConfig } from "../_shared/config.ts";
 import { fotoDoUltimoWebhook, salvarFotoPerfil } from "../_shared/fotos.ts";
+import { erroDeDesconexao, estadoDe, registrarConexao } from "../_shared/conexao.ts";
 import {
   apagarMensagem, detalhesChat, editarMensagem, enviarContato, enviarEnquete, enviarMidia, enviarTexto,
-  marcarLidas, reagir, type TipoMidiaUazapi,
+  marcarLidas, reagir, statusInstancia, type TipoMidiaUazapi,
 } from "../_shared/uazapi.ts";
 
 const cors = {
@@ -57,9 +59,11 @@ Deno.serve(async (req) => {
     if (["reagir", "editar", "apagar", "votar"].includes(acao)) return json(await sobreMensagem(cfg, acao, body));
     if (acao === "marcar_lidas") return json(await marcarConversaLida(cfg, body.contato_id));
     if (acao === "atualizar_contatos") return json(await atualizarContatos(cfg, body.ids));
+    if (acao === "verificar_conexao") return json(await verificarConexao(cfg));
     return await novaMensagem(cfg, user.id, acao, body);
   } catch (e) {
     if (e instanceof ErroEntrada) return json({ error: e.message }, e.status);
+    if (erroDeDesconexao(e)) await registrarConexao("offline", "envio", { motivo: (e as Error).message });
     console.error(acao, e);
     return json({ error: "A UAZAPI recusou o pedido. Verifique se o WhatsApp está conectado." }, 502);
   }
@@ -176,6 +180,7 @@ async function novaMensagem(cfg: UazapiConfig, userId: string, acao: string, bod
     if (error) throw error;
     return json({ mensagem: gravada });
   } catch (e) {
+    if (erroDeDesconexao(e)) await registrarConexao("offline", "envio", { motivo: (e as Error).message });
     await admin.from("mensagens").insert({ ...base, status: "falhou", erro: String((e as Error).message ?? e) });
     return json({ error: "Não foi possível enviar. Verifique se o WhatsApp está conectado na UAZAPI." }, 502);
   }
@@ -269,6 +274,23 @@ async function atualizarContatos(cfg: UazapiConfig, ids: unknown) {
     }
   }));
   return { atualizados: feitos.filter(Boolean).length };
+}
+
+// ---------------------------------------------------------------------
+// Conexão: a bolinha de Conversas pede de tempos em tempos para conferir se o
+// WhatsApp está no ar. Qualquer pessoa da equipe pode (Ajustes é só para admin).
+// ---------------------------------------------------------------------
+
+async function verificarConexao(cfg: UazapiConfig) {
+  try {
+    const s = await statusInstancia(cfg);
+    const estado = estadoDe(s.status);
+    await registrarConexao(estado, "verificacao", { motivo: s.motivoDesconexao, momento: s.ultimaDesconexao });
+    return { estado };
+  } catch (e) {
+    await registrarConexao("offline", "verificacao", { motivo: (e as Error).message });
+    return { estado: "offline" };
+  }
 }
 
 // ---------------------------------------------------------------------

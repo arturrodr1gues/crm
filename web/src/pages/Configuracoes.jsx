@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { BotaoPrimario, BotaoSecundario, Campo, Entrada } from "../components/ui";
 import ConfigAtendimento from "../components/ConfigAtendimento";
 import ContatosBloqueados from "../components/ContatosBloqueados";
+import HistoricoConexao from "../components/HistoricoConexao";
 import NovaSenha from "../components/NovaSenha";
 import { EsqueletoConfiguracoes } from "../components/Esqueletos";
 
@@ -68,6 +69,8 @@ export default function Configuracoes() {
             onRefazer={() => executar("webhook")} />
         </>
       )}
+
+      {info?.configurado && <HistoricoConexao />}
 
       <ConfigAtendimento />
 

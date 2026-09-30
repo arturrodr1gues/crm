@@ -9,6 +9,7 @@
 //   webhook      cadastra de novo o webhook na UAZAPI
 
 import { admin, lerConfig, urlDoWebhook, type UazapiConfig } from "../_shared/config.ts";
+import { estadoDe, registrarConexao } from "../_shared/conexao.ts";
 import {
   configurarWebhook, conectarInstancia, desconectarInstancia, ErroUazapi, lerWebhook, statusInstancia, webhookAtual,
 } from "../_shared/uazapi.ts";
@@ -52,6 +53,8 @@ async function situacao(cfg: UazapiConfig | null) {
   let instancia = null, erro = null, webhook = null;
   try {
     instancia = await statusInstancia(cfg);
+    await registrarConexao(estadoDe(instancia.status), "ajustes",
+      { motivo: instancia.motivoDesconexao, momento: instancia.ultimaDesconexao });
   } catch (e) {
     erro = mensagemDeErro(e);
   }
@@ -91,10 +94,15 @@ Deno.serve(async (req) => {
     switch (body.acao) {
       case "status": {
         const atual = await situacao(cfg);
-        // Webhook cadastrado por uma versão antiga (sem grupos): atualiza sozinho.
+        // Webhook cadastrado por uma versão antiga (sem grupos ou sem o evento de conexão):
+        // atualiza sozinho. Se a UAZAPI recusar agora, mostra a situação mesmo assim.
         if (cfg?.webhookSecret && "webhook" in atual && atual.webhook?.desatualizado) {
-          await configurarWebhook(cfg, urlDoWebhook(cfg.webhookSecret));
-          return json(await situacao(cfg));
+          try {
+            await configurarWebhook(cfg, urlDoWebhook(cfg.webhookSecret));
+            return json(await situacao(cfg));
+          } catch (e) {
+            console.warn("atualizar webhook", e);
+          }
         }
         return json(atual);
       }
