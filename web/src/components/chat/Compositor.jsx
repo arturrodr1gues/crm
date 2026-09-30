@@ -18,10 +18,21 @@ export default function Compositor({
   onTexto, onArquivo, onFigurinha, onContato, onEnquete,
 }) {
   const [texto, setTexto] = useState("");
-  const [painel, setPainel] = useState(null); // null | "emoji" | "anexo" | "modelos"
+  const [painel, setPainel] = useState(null); // null | "emoji" | "figurinhas" | "anexo" | "modelos"
   const [gravando, setGravando] = useState(false);
   const campo = useRef(null);
-  const entradas = { midia: useRef(null), documento: useRef(null), audio: useRef(null), figurinha: useRef(null) };
+  const raiz = useRef(null);
+
+  // Painel aberto (emojis, figurinhas, anexos, modelos): Esc ou clique fora da área de escrever fecha.
+  useEffect(() => {
+    if (!painel) return;
+    const tecla = (e) => { if (e.key === "Escape") { e.stopPropagation(); setPainel(null); } };
+    const fora = (e) => { if (raiz.current && !raiz.current.contains(e.target)) setPainel(null); };
+    window.addEventListener("keydown", tecla);
+    document.addEventListener("pointerdown", fora);
+    return () => { window.removeEventListener("keydown", tecla); document.removeEventListener("pointerdown", fora); };
+  }, [painel]);
+  const entradas = { midia: useRef(null), documento: useRef(null), audio: useRef(null) };
 
   // Abriu a conversa: cursor já no campo, pronto para escrever.
   useEffect(() => { campo.current?.focus(); }, [contato.id]);
@@ -78,17 +89,20 @@ export default function Compositor({
     { rotulo: "Foto ou vídeo", Icone: IconeFoto, cor: "bg-sky-600", acao: () => entradas.midia.current.click() },
     { rotulo: "Arquivo", Icone: IconeDoc, cor: "bg-indigo-600", acao: () => entradas.documento.current.click() },
     { rotulo: "Áudio", Icone: IconeMusica, cor: "bg-orange-600", acao: () => entradas.audio.current.click() },
-    { rotulo: "Figurinha", Icone: IconeFigurinha, cor: "bg-emerald-600", acao: () => entradas.figurinha.current.click() },
+    { rotulo: "Figurinha", Icone: IconeFigurinha, cor: "bg-emerald-600", acao: () => setPainel("figurinhas") }, // figurinhas salvas
     { rotulo: "Contato", Icone: IconePessoa, cor: "bg-cyan-700", acao: () => { setPainel(null); onContato(); } },
     { rotulo: "Enquete", Icone: IconeEnquete, cor: "bg-amber-600", acao: () => { setPainel(null); onEnquete(); } },
   ];
 
   const botao = "h-10 w-9 shrink-0 grid place-items-center rounded-full text-tinta-suave hover:bg-fundo";
+  const emojisAbertos = painel === "emoji" || painel === "figurinhas";
 
   return (
-    <div className="relative border-t border-linha bg-superficie">
-      {painel === "emoji" && (
-        <PainelEmoji onEmoji={inserirEmoji} onFigurinha={(p) => { setPainel(null); onFigurinha(p); }} />
+    <div ref={raiz} className="relative border-t border-linha bg-superficie">
+      {emojisAbertos && (
+        <PainelEmoji key={painel} abaInicial={painel === "figurinhas" ? "figurinhas" : undefined}
+          onFechar={() => setPainel(null)}
+          onEmoji={inserirEmoji} onFigurinha={(p, mime) => { setPainel(null); onFigurinha(p, mime); }} />
       )}
       {painel === "anexo" && (<>
         {/* Clique fora fecha o menu */}
@@ -134,7 +148,6 @@ export default function Compositor({
       <input ref={entradas.midia} type="file" accept="image/*,video/*" hidden onChange={(e) => arquivoEscolhido(e)} />
       <input ref={entradas.documento} type="file" hidden onChange={(e) => arquivoEscolhido(e, "documento")} />
       <input ref={entradas.audio} type="file" accept="audio/*" hidden onChange={(e) => arquivoEscolhido(e, "audio")} />
-      <input ref={entradas.figurinha} type="file" accept="image/*" hidden onChange={(e) => arquivoEscolhido(e, "figurinha")} />
 
       <div className="px-2 py-1.5">
         {!respondendo && !gravando && (
@@ -169,8 +182,8 @@ export default function Compositor({
             onPronto={(f) => { setGravando(false); onArquivo(f, "audio", { voz: true, direto: true }); }} />
         ) : (
           <form onSubmit={enviar} className="flex items-center gap-1">
-            <button type="button" onClick={() => setPainel(painel === "emoji" ? null : "emoji")} aria-label="Emojis e figurinhas"
-              aria-pressed={painel === "emoji"} className={`${botao} ${painel === "emoji" ? "text-tinta" : ""}`}>
+            <button type="button" onClick={() => setPainel(emojisAbertos ? null : "emoji")} aria-label="Emojis e figurinhas"
+              aria-pressed={emojisAbertos} className={`${botao} ${emojisAbertos ? "text-tinta" : ""}`}>
               <IconeEmoji className="w-5 h-5" />
             </button>
             <button type="button" onClick={() => setPainel(painel === "anexo" ? null : "anexo")} aria-label="Anexar"

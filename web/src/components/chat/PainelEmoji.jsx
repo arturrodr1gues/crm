@@ -1,15 +1,16 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { useRef, useState } from "react";
 import { useUrlMidia } from "../../lib/whatsapp";
+import { removerFigurinha, subirFigurinha, useFigurinhasSalvas } from "../../lib/figurinhas";
 import { CATEGORIAS_EMOJI, emojisRecentes, guardarRecente } from "../../lib/emojis";
-import { EsqueletoMiniaturas } from "../Esqueletos";
+import { EsqueletoMiniaturas, Osso } from "../Esqueletos";
 
 /**
  * Emojis por categoria, com os recentes no topo. Com `onFigurinha`, mostra também
- * a aba de figurinhas (as últimas recebidas ou enviadas, para reaproveitar).
+ * a aba das figurinhas salvas pela equipe. `abaInicial="figurinhas"` abre direto nela.
+ * Com `onFechar`, mostra o × no fim da barra de abas.
  */
-export default function PainelEmoji({ onEmoji, onFigurinha }) {
-  const [aba, setAba] = useState(() => (emojisRecentes().length ? "recentes" : CATEGORIAS_EMOJI[0].nome));
+export default function PainelEmoji({ onEmoji, onFigurinha, abaInicial, onFechar }) {
+  const [aba, setAba] = useState(() => abaInicial ?? (emojisRecentes().length ? "recentes" : CATEGORIAS_EMOJI[0].nome));
   const recentes = emojisRecentes();
 
   const escolher = (e) => { guardarRecente(e); onEmoji(e); };
@@ -31,6 +32,10 @@ export default function PainelEmoji({ onEmoji, onFigurinha }) {
             {a.icone}
           </button>
         ))}
+        {onFechar && (
+          <button type="button" onClick={onFechar} aria-label="Fechar" title="Fechar (Esc)"
+            className="ml-auto sticky right-0 shrink-0 h-10 w-10 grid place-items-center text-xl text-tinta-suave bg-superficie hover:text-tinta">×</button>
+        )}
       </div>
       <div className="h-56 overflow-y-auto p-1">
         {aba === "figurinhas" ? <Figurinhas onEscolher={onFigurinha} /> : (
@@ -47,31 +52,61 @@ export default function PainelEmoji({ onEmoji, onFigurinha }) {
   );
 }
 
+// Figurinhas salvas: clicar envia; o × tira da lista; "+" sobe uma imagem do computador.
 function Figurinhas({ onEscolher }) {
-  const [lista, setLista] = useState(null);
+  const lista = useFigurinhasSalvas();
+  const [erro, setErro] = useState("");
+  const [subindo, setSubindo] = useState(false);
+  const entrada = useRef(null);
 
-  useEffect(() => {
-    supabase.from("mensagens").select("midia_path").eq("tipo", "figurinha").not("midia_path", "is", null)
-      .order("momento", { ascending: false }).limit(80)
-      .then(({ data }) => setLista([...new Set((data ?? []).map((x) => x.midia_path))].slice(0, 30)));
-  }, []);
+  async function subir(e) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    setErro(""); setSubindo(true);
+    try { await subirFigurinha(f); } catch (x) { setErro(x.message); }
+    setSubindo(false);
+  }
+  async function remover(f) {
+    setErro("");
+    try { await removerFigurinha(f); } catch (x) { setErro(x.message); }
+  }
 
   if (!lista) return <div className="p-3"><EsqueletoMiniaturas colunas="grid-cols-6" n={18} /></div>;
-  if (!lista.length) {
-    return <p className="text-sm text-tinta-suave p-3">As figurinhas que você receber aparecem aqui. Para mandar uma imagem como figurinha, use o clipe → Figurinha.</p>;
-  }
   return (
-    <div className="grid grid-cols-4 md:grid-cols-6 gap-1">
-      {lista.map((p) => <MiniFigurinha key={p} path={p} onClick={() => onEscolher(p)} />)}
+    <div>
+      {erro && <p className="text-alerta text-xs px-2 pb-1">{erro}</p>}
+      <div className="grid grid-cols-4 md:grid-cols-6 gap-1">
+        <button type="button" onClick={() => entrada.current.click()} disabled={subindo}
+          title="Adicionar figurinha do computador"
+          className="aspect-square rounded-lg border-2 border-dashed border-linha text-tinta-suave hover:border-sol hover:text-tinta grid place-items-center text-center text-[11px] leading-tight p-1">
+          {subindo ? "Subindo…" : <span><span className="block text-2xl font-light leading-none">+</span>Adicionar</span>}
+        </button>
+        {lista.map((f) => (
+          <MiniFigurinha key={f.id} path={f.midia_path} onClick={() => onEscolher(f.midia_path, f.mime)} onRemover={() => remover(f)} />
+        ))}
+      </div>
+      {!lista.length && (
+        <p className="text-sm text-tinta-suave p-2">
+          Nenhuma figurinha salva. Toque numa figurinha recebida e escolha "Salvar figurinha", ou use o + para subir uma imagem.
+        </p>
+      )}
+      <input ref={entrada} type="file" accept="image/webp,image/png,image/jpeg,image/gif" hidden onChange={subir} />
     </div>
   );
 }
 
-function MiniFigurinha({ path, onClick }) {
+function MiniFigurinha({ path, onClick, onRemover }) {
   const url = useUrlMidia(path);
   return (
-    <button type="button" onClick={onClick} className="aspect-square rounded-lg hover:bg-fundo p-1" aria-label="Enviar figurinha">
-      {url && <img src={url} alt="" loading="lazy" className="w-full h-full object-contain" />}
-    </button>
+    <div className="group relative aspect-square">
+      <button type="button" onClick={onClick} className="w-full h-full rounded-lg hover:bg-fundo p-1" aria-label="Enviar figurinha">
+        {url ? <img src={url} alt="" loading="lazy" className="w-full h-full object-contain" /> : <Osso raio="rounded-lg" className="w-full h-full" />}
+      </button>
+      <button type="button" onClick={onRemover} aria-label="Remover das salvas" title="Remover das salvas"
+        className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-tinta/70 text-white text-xs leading-none grid place-items-center opacity-0 group-hover:opacity-100 focus:opacity-100">
+        ×
+      </button>
+    </div>
   );
 }

@@ -6,8 +6,41 @@ import { IconeCopiar, IconeDoc, IconeLapis, IconeLixo, IconeResponder } from "./
 import { formatarTelefone, normalizarTelefone } from "../../lib/format";
 import { LIMITE_MIDIA, tamanhoLegivel } from "../../lib/whatsapp";
 import { REACOES_RAPIDAS } from "../../lib/emojis";
+import { figurinhaJaSalva, salvarFigurinhaDaMensagem } from "../../lib/figurinhas";
 
 const PRAZO_EDICAO_MS = 15 * 60 * 1000;
+
+// Guarda a figurinha da mensagem nas salvas, para mandar depois pelo painel de figurinhas.
+function SalvarFigurinha({ m, classe }) {
+  const [estado, setEstado] = useState("vendo"); // vendo | livre | salvando | salva | erro
+  useEffect(() => {
+    // Figurinha enviada a partir das salvas já está lá
+    if (m.midia_path.startsWith("figurinhas/")) { setEstado("salva"); return; }
+    figurinhaJaSalva(m.midia_path).then((ja) => setEstado(ja ? "salva" : "livre"));
+  }, [m.midia_path]);
+
+  async function salvar() {
+    setEstado("salvando");
+    try { await salvarFigurinhaDaMensagem(m); setEstado("salva"); } catch { setEstado("erro"); }
+  }
+
+  if (estado === "vendo") return null;
+  if (estado === "salva") {
+    return <p className={`${classe} text-ok cursor-default hover:bg-transparent`}><IconeEstrela className="w-4 h-4" cheia /> Figurinha salva</p>;
+  }
+  return (
+    <button type="button" className={classe} onClick={salvar} disabled={estado === "salvando"}>
+      <IconeEstrela className="w-4 h-4" />
+      {estado === "salvando" ? "Salvando…" : estado === "erro" ? "Não deu para salvar. Tentar de novo" : "Salvar figurinha"}
+    </button>
+  );
+}
+
+function IconeEstrela({ cheia, ...p }) {
+  return (<svg viewBox="0 0 24 24" fill={cheia ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" {...p}>
+    <path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />
+  </svg>);
+}
 
 /** Reagir, responder, copiar, editar e apagar uma mensagem. */
 export function AcoesMensagem({ m, grupo, onFechar, onResponder, onReagir, onEditar, onApagar }) {
@@ -55,6 +88,7 @@ export function AcoesMensagem({ m, grupo, onFechar, onResponder, onReagir, onEdi
             <IconeCopiar className="w-4 h-4" /> Copiar texto
           </button>
         )}
+        {m.tipo === "figurinha" && m.midia_path && <SalvarFigurinha m={m} classe={itens} />}
         {podeEditar && (
           <button type="button" className={itens} onClick={() => setModo("editar")}>
             <IconeLapis className="w-4 h-4" /> Editar
