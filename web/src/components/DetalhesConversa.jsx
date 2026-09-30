@@ -20,7 +20,7 @@ export default function DetalhesConversa({ contato, children }) {
     <div className="bg-fundo min-h-full">
       {/* Foto à esquerda, nome e número no meio, botão da página do lead à direita */}
       <section className="bg-superficie px-4 py-4 border-b border-linha grid grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-2 items-center gap-x-2.5">
-        <div className="row-span-2"><FotoContato contato={contato} className="h-12 w-12" texto="text-xl" /></div>
+        <div className="row-span-2"><FotoContato contato={contato} className="h-12 w-12" texto="text-xl" ampliavel /></div>
         <h2 className="self-end text-base font-semibold truncate">{contato.is_grupo ? contato.nome || "Grupo sem nome" : nomeOuTelefone(contato)}</h2>
         {!contato.is_grupo && (
           // A mesma ficha em tela cheia, para quem prefere ver o lead fora da conversa

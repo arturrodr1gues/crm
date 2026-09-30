@@ -20,7 +20,8 @@ const PAGINA = 15;
 const maisRecentes = (contatoId) => supabase.from("mensagens").select(COLUNAS).eq("contato_id", contatoId)
   .order("momento", { ascending: false }).order("id", { ascending: false }).limit(PAGINA);
 
-export default function Chat({ contato, etapa }) {
+// `irParaMensagem`: message_id vindo da busca; a conversa abre rolada até ela.
+export default function Chat({ contato, etapa, irParaMensagem }) {
   const [msgs, setMsgs] = useState([]);
   const [erro, setErro] = useState("");
   const [respostas, setRespostas] = useState([]);
@@ -112,6 +113,15 @@ export default function Chat({ contato, etapa }) {
     ajuste.current = null;
     if (irDepois.current) { const id = irDepois.current; irDepois.current = null; irPara(id); }
   }, [msgs]);
+
+  // Veio da busca por mensagens: depois da primeira página, vai até a mensagem achada
+  // (buscando as páginas anteriores se ela for mais antiga).
+  const jaFoi = useRef(null);
+  useEffect(() => {
+    if (!iniciada || !irParaMensagem || jaFoi.current === `${contato.id}|${irParaMensagem}`) return;
+    jaFoi.current = `${contato.id}|${irParaMensagem}`;
+    irPara(irParaMensagem); // roda antes do "busca mais sozinho" abaixo, que espera ele terminar
+  }, [iniciada, irParaMensagem, contato.id]);
 
   // Se a primeira página não enche a tela, não há como rolar: busca mais sozinho.
   useEffect(() => {
@@ -212,8 +222,8 @@ export default function Chat({ contato, etapa }) {
     else setModal({ tipo: "arquivo", file, tipoMidia: tipo });
   }
 
-  const enviarFigurinha = (path) =>
-    enviar({ tipo: "figurinha", midia_path: path }, () => ({ acao: "midia", tipo: "figurinha", path, mime: "image/webp" }));
+  const enviarFigurinha = (path, mime = "image/webp") =>
+    enviar({ tipo: "figurinha", midia_path: path }, () => ({ acao: "midia", tipo: "figurinha", path, mime }));
 
   function enviarContato({ nome, telefone }) {
     setModal(null);

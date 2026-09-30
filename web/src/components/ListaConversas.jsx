@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { nomeOuTelefone, quando, soDigitos } from "../lib/format";
 import { chamarWhatsapp } from "../lib/whatsapp";
 import FotoContato from "./FotoContato";
+import StatusConexao from "./StatusConexao";
 import { estadoAtendimento, useAgora, useAtendimentoConfig } from "../lib/atendimento";
 import { usePreferencia } from "../lib/preferencias";
 import { SeloEtapa } from "./ui";
@@ -20,6 +21,18 @@ const PAGINA = 10;
 const VALIDADE_FOTO_MS = 3 * 24 * 3600 * 1000;
 // Contatos que já pediram foto nesta visita, para não repetir a cada recarga da lista.
 const fotosPedidas = new Set();
+
+// Busca no texto das mensagens (a partir de 3 letras; número de telefone busca só contatos).
+const MIN_BUSCA_MENSAGEM = 3;
+async function buscarMensagens(termo) {
+  if (termo.length < MIN_BUSCA_MENSAGEM || soDigitos(termo).length >= 4) return [];
+  const escapado = termo.replace(/[\\%_]/g, (c) => `\\${c}`);
+  const { data } = await supabase.from("mensagens")
+    .select("id, message_id, texto, momento, direcao, contato:contatos!inner(id, nome, telefone, is_grupo, foto_path, bloqueado)")
+    .ilike("texto", `%${escapado}%`).eq("apagada", false).eq("contato.bloqueado", false)
+    .order("momento", { ascending: false }).limit(20);
+  return data ?? [];
+}
 
 /**
  * Lista de conversas em tempo real: abas Em aberto / Fechadas, busca e filtros
@@ -40,6 +53,7 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
   const [confirmar, setConfirmar] = useState(null); // bloquear | excluir
   const [limite, setLimite] = useState(PAGINA);
   const [temMais, setTemMais] = useState(false);
+  const [mensagensAchadas, setMensagensAchadas] = useState([]); // busca dentro das mensagens
   const fimDaLista = useRef(null);
   const navigate = useNavigate();
   const config = useAtendimentoConfig();
@@ -71,16 +85,18 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
     q = f === "sla" ? q.order("aguardando_resposta_desde", { ascending: true })
       : q.order("ultima_mensagem_em", { ascending: false });
 
-    const [{ data }, sla, followup] = await Promise.all([
+    const [{ data }, sla, followup, achadas] = await Promise.all([
       q,
       soLeadsAbertos(supabase.from("contatos").select("id", { count: "exact", head: true }))
         .lt("aguardando_resposta_desde", limiteSla),
       soLeadsAbertos(supabase.from("contatos").select("id", { count: "exact", head: true }))
         .lt("aguardando_cliente_desde", limiteFollowup),
+      buscarMensagens(t),
     ]);
     setLista(data ?? []);
     setTemMais((data?.length ?? 0) === limite);
     setContagem({ sla: sla.count ?? 0, followup: followup.count ?? 0 });
+    setMensagensAchadas(achadas);
     pedirFotos(data ?? []);
   }
 
@@ -156,7 +172,11 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
     <div className={lateral ? "flex flex-col h-full min-h-0" : ""}>
       <div className={lateral ? "px-3 pt-4 pb-2 border-b border-linha" : "mb-3"}>
         <div className={`flex items-center justify-between ${lateral ? "mb-3 px-1" : "mb-4"}`}>
-          <h1 className={`flex-1 ${lateral ? "text-xl font-bold" : "text-3xl font-bold"}`}>Conversas</h1>
+          <div className="flex-1 min-w-0 flex items-center gap-2">
+            <h1 className={lateral ? "text-xl font-bold" : "text-3xl font-bold"}>Conversas</h1>
+            {/* Bolinha da conexão com o WhatsApp; na coluna estreita só a bolinha */}
+            <StatusConexao compacto={lateral} />
+          </div>
           <button type="button" onClick={() => (selecionando ? sairDaSelecao() : setSelecionando(true))}
             aria-pressed={selecionando}
             className={`h-8 px-2.5 rounded-lg text-sm font-medium ${selecionando ? "bg-tinta text-white" : "text-tinta-suave hover:bg-fundo"}`}>
@@ -182,7 +202,7 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
           ))}
         </div>
 
-        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou telefone"
+        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar conversa ou mensagem"
           aria-label="Buscar conversa"
           className={`w-full px-3 rounded-lg border border-linha ${lateral ? "bg-fundo" : "bg-superficie"} ${campo}`} />
 
@@ -226,7 +246,7 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
       <div className={lateral ? "flex-1 min-h-0 overflow-y-auto" : ""}>
         {!lista ? <EsqueletoListaConversas lateral={lateral} /> : lista.length === 0 ? (
           <p className="text-tinta-suave py-8 px-4 text-center text-sm">
-            {busca ? "Nenhuma conversa encontrada."
+            {busca ? (mensagensAchadas.length ? "Nenhum contato com esse nome ou telefone." : "Nenhuma conversa encontrada.")
               : aba === "fechadas" ? "Nenhuma conversa encerrada. Use \"Encerrar\" no topo da conversa quando o atendimento terminar."
               : filtro === "leads" ? "Nenhum lead em aberto. Marque \"Novo lead\" no topo da conversa para ele aparecer aqui."
               : filtro === "sla" ? "Nenhum lead esperando além do SLA. 👏"
@@ -298,12 +318,54 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
             </button>
           </div>
         )}
+
+        {/* Busca também dentro das mensagens: abre a conversa já na mensagem achada */}
+        {busca.trim() && mensagensAchadas.length > 0 && !selecionando && (
+          <section className={lateral ? "border-t border-linha" : "mt-4"}>
+            <h2 className={`text-xs font-semibold uppercase tracking-wide text-tinta-suave ${lateral ? "px-4 pt-3 pb-1" : "px-1 pb-2"}`}>
+              Mensagens
+            </h2>
+            <ul className={lateral ? "divide-y divide-linha" : "bg-superficie rounded-2xl border border-linha divide-y divide-linha"}>
+              {mensagensAchadas.map((m) => (
+                <li key={m.id} className="animate-entrada">
+                  <Link to={`/conversas/${m.contato.id}${m.message_id ? `?msg=${encodeURIComponent(m.message_id)}` : ""}`}
+                    className={`flex items-center gap-3 ${lateral ? "px-3 py-2.5 hover:bg-fundo/60" : "px-4 py-3 hover:bg-fundo/60"}`}>
+                    <FotoContato contato={m.contato} className={lateral ? "h-10 w-10" : "h-11 w-11"} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate font-medium">{nomeOuTelefone(m.contato)}</span>
+                        <span className="shrink-0 text-xs text-tinta-suave">{quando(m.momento)}</span>
+                      </div>
+                      <div className="text-sm text-tinta-suave truncate">
+                        {m.direcao === "out" && "Você: "}<Destaque texto={m.texto} termo={busca.trim()} />
+                      </div>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
 
       {confirmar && (
         <ConfirmarAcaoContatos acao={confirmar} ids={escolhidos} onFechar={() => setConfirmar(null)} onFeito={acaoFeita} />
       )}
     </div>
+  );
+}
+
+// Trecho da mensagem em volta do termo buscado, com o termo em negrito
+function Destaque({ texto, termo }) {
+  const i = (texto ?? "").toLowerCase().indexOf(termo.toLowerCase());
+  if (i < 0) return texto;
+  const inicio = Math.max(0, i - 30);
+  return (
+    <>
+      {inicio > 0 && "…"}{texto.slice(inicio, i)}
+      <mark className="bg-sol/40 text-tinta rounded-sm px-0.5">{texto.slice(i, i + termo.length)}</mark>
+      {texto.slice(i + termo.length)}
+    </>
   );
 }
 
