@@ -284,12 +284,13 @@ export default function Chat({ contato, etapa, irParaMensagem }) {
   const emAcao = acoes && (msgs.find((x) => x.id === acoes.id) ?? acoes);
 
   let diaAnterior = "";
+  let autorAnterior = null;
 
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="relative flex-1 min-h-0">
       <div ref={rolagem} onScroll={aoRolar}
-        className={`h-full overflow-y-auto overscroll-contain px-2.5 md:px-4 pt-6 ${etapa ? "pb-12" : "pb-3"} space-y-1 bg-fundo`}
+        className={`h-full overflow-y-auto overscroll-contain px-2.5 md:px-4 pt-6 ${etapa ? "pb-12" : "pb-3"} bg-fundo`}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) arquivoEscolhido(f); }}>
         {!iniciada && <EsqueletoBolhas />}
@@ -312,8 +313,12 @@ export default function Chat({ contato, etapa, irParaMensagem }) {
           const dia = dataCurta(m.momento);
           const mostrarDia = dia !== diaAnterior;
           diaAnterior = dia;
+          // Como no WhatsApp: mensagens seguidas da mesma pessoa ficam mais perto; trocou quem fala, abre mais espaço.
+          const autor = m.direcao === "out" ? "eu" : m.autor_telefone || m.autor_nome || "ele";
+          const seguida = !mostrarDia && autor === autorAnterior;
+          autorAnterior = autor;
           return (
-            <div key={m.id} className="animate-mensagem">
+            <div key={m.id} className={`animate-mensagem ${seguida ? "mt-1.5" : "mt-4"}`}>
               {mostrarDia && (
                 <div className="flex justify-center my-2.5">
                   <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-superficie text-tinta-suave shadow-sm">{dia}</span>

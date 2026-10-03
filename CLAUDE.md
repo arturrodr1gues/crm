@@ -1,5 +1,9 @@
 # CRM Solar
 
+## Idioma
+
+- Todas as respostas do Claude são em português do Brasil (pt-BR), inclusive resumos, perguntas e explicações.
+
 ## Banco de dados (Supabase)
 
 - Toda mudança de banco vira um arquivo novo em `supabase/migrations/`, numerado em sequência (`0011_nome.sql`, `0012_...`). Nunca edite uma migração que já foi aplicada.

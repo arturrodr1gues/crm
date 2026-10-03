@@ -1,0 +1,11 @@
+{
+  "name": "crm-solar",
+  "private": true,
+  "description": "Atalhos para rodar o app (que fica em web/) direto da pasta do projeto",
+  "scripts": {
+    "dev": "npm --prefix web run dev",
+    "build": "npm --prefix web run build",
+    "preview": "npm --prefix web run preview",
+    "postinstall": "npm --prefix web install"
+  }
+}

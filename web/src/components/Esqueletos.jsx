@@ -72,7 +72,7 @@ export function EsqueletoBolhas() {
   const bolhas = [["w-40", false, "h-9"], ["w-56", true, "h-9"], ["w-64", false, "h-16"], ["w-32", true, "h-9"],
     ["w-48", false, "h-9"], ["w-60", true, "h-14"], ["w-36", false, "h-9"]];
   return (
-    <Carregando className="space-y-2 pt-2">
+    <Carregando className="space-y-3 pt-2">
       {bolhas.map(([largura, minha, altura], i) => (
         <div key={i} className={`flex ${minha ? "justify-end" : "justify-start"}`}>
           <Osso raio="rounded-xl" className={`${altura} ${largura} max-w-[75%] ${minha ? "opacity-60" : ""}`} />
