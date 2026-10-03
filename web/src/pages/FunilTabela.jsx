@@ -5,7 +5,7 @@ import { carregarEtapas, classeCor, useEtapas } from "../lib/etapas";
 import { dataCurta, diasDesde, formatarTelefone, inicioDoDia, nomeOuTelefone } from "../lib/format";
 import { buscarOportunidades, combina, semAcento } from "../lib/funil";
 import VisaoFunil from "../components/VisaoFunil";
-import { Selecao } from "../components/ui";
+import { CampoBusca, Selecao } from "../components/ui";
 import { EsqueletoTabela } from "../components/Esqueletos";
 
 const nomeDe = (lista, id) => lista.find((x) => x.id === id)?.nome ?? "";
@@ -102,16 +102,8 @@ export default function FunilTabela() {
           <VisaoFunil />
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1 max-w-md">
-            <IconeBusca className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-tinta-suave pointer-events-none" />
-            <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar por nome, telefone ou bairro" aria-label="Buscar no funil"
-              className="w-full h-11 pl-10 pr-10 rounded-lg border border-linha bg-superficie text-base" />
-            {busca && (
-              <button type="button" onClick={() => setBusca("")} aria-label="Limpar busca"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-9 w-9 text-xl text-tinta-suave">×</button>
-            )}
-          </div>
+          <CampoBusca valor={busca} onMudar={setBusca} className="flex-1 max-w-md"
+            placeholder="Buscar por nome, telefone ou bairro" rotulo="Buscar no funil" />
           <Selecao variante="barra" opcoes={etapas} vazio="Todas as colunas" value={filtroEtapa}
             onChange={(e) => setFiltroEtapa(e.target.value)} aria-label="Filtrar por coluna" className="sm:w-56" />
         </div>
@@ -158,8 +150,3 @@ export default function FunilTabela() {
   );
 }
 
-function IconeBusca(p) {
-  return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}>
-    <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
-  </svg>);
-}

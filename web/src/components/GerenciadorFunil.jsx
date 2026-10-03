@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabase";
 import {
   CAMPOS_CARD, CORES, atualizarEtapasLocal, carregarEtapas, classeCor, reordenarAbertas, useEtapas,
 } from "../lib/etapas";
-import { BotaoPrimario, Modal, Selecao } from "./ui";
+import { AvisoErro, BotaoPrimario, Modal, Selecao } from "./ui";
 
 // Controle do funil: colunas (nome, cor, ordem, alerta, excluir) e o que aparece em cada card.
 export default function GerenciadorFunil({ campos, onCampos, contagem, onFechar, onCardsMovidos }) {
@@ -102,7 +102,7 @@ function Colunas({ contagem, onCardsMovidos }) {
         </ul>
       </div>
 
-      {erro && <p role="alert" className="text-sm text-alerta">{erro}</p>}
+      <AvisoErro>{erro}</AvisoErro>
     </div>
   );
 }
@@ -251,7 +251,7 @@ function CamposCard({ campos, onCampos }) {
           </li>
         ))}
       </ul>
-      {erro && <p role="alert" className="text-sm text-alerta">{erro}</p>}
+      <AvisoErro>{erro}</AvisoErro>
     </div>
   );
 }

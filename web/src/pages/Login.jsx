@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
+import { AvisoErro, BotaoPrimario, Campo, Entrada } from "../components/ui";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -44,28 +45,22 @@ export default function Login() {
             {recuperando ? "Enviamos um link para você criar uma senha nova." : "Entre para ver o seu dia."}
           </p>
         </div>
-        <label className="block">
-          <span className="text-sm font-medium">E-mail</span>
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            className="mt-1 w-full h-12 px-3 rounded-lg border border-linha bg-fundo" />
-        </label>
+        <Campo rotulo="E-mail">
+          <Entrada type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+        </Campo>
         {!recuperando && (
-          <label className="block">
-            <span className="text-sm font-medium">Senha</span>
-            <input type="password" required value={senha} onChange={(e) => setSenha(e.target.value)}
-              autoComplete="current-password"
-              className="mt-1 w-full h-12 px-3 rounded-lg border border-linha bg-fundo" />
-          </label>
+          <Campo rotulo="Senha">
+            <Entrada type="password" required value={senha} onChange={(e) => setSenha(e.target.value)}
+              autoComplete="current-password" />
+          </Campo>
         )}
-        {erro && <p role="alert" className="text-alerta text-sm">{erro}</p>}
+        <AvisoErro>{erro}</AvisoErro>
         {aviso && <p className="text-ok text-sm">{aviso}</p>}
-        <button disabled={carregando}
-          className="w-full h-12 rounded-lg bg-sol text-tinta font-semibold disabled:opacity-60">
+        <BotaoPrimario disabled={carregando} className="w-full">
           {recuperando
             ? (carregando ? "Enviando..." : "Enviar link")
             : (carregando ? "Entrando..." : "Entrar")}
-        </button>
+        </BotaoPrimario>
         <button type="button" onClick={alternar} className="w-full text-sm underline text-tinta-suave">
           {recuperando ? "Voltar para entrar" : "Esqueci minha senha"}
         </button>

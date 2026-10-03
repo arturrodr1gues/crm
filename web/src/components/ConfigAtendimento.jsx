@@ -3,7 +3,7 @@ import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, us
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "../lib/supabase";
-import { BotaoPrimario, BotaoSecundario, Campo, Entrada, Modal, Selecao } from "./ui";
+import { AvisoErro, BotaoPrimario, BotaoSecundario, Campo, CartaoSecao, Entrada, Modal, Selecao } from "./ui";
 import { IconeAlca } from "./GerenciadorFunil";
 import { VARIAVEIS, aplicarVariaveis, duracaoCurta, recarregarConfig, useAtendimentoConfig } from "../lib/atendimento";
 import { EsqueletoLinhas } from "./Esqueletos";
@@ -11,16 +11,6 @@ import { EsqueletoLinhas } from "./Esqueletos";
 const OPCOES_SLA = [15, 30, 45, 60, 90, 120, 180, 240, 480];
 const OPCOES_FOLLOWUP = [2, 4, 6, 8, 12, 24, 48, 72];
 const EXEMPLO = { nome: "Maria Souza" };
-
-function Cartao({ titulo, descricao, children }) {
-  return (
-    <section className="bg-superficie rounded-2xl border border-linha p-5 mb-5">
-      <h2 className="text-lg font-semibold">{titulo}</h2>
-      {descricao && <p className="text-sm text-tinta-suave mt-0.5 mb-4">{descricao}</p>}
-      {children}
-    </section>
-  );
-}
 
 /** Cartões de Atendimento (SLA e follow-up) e Mensagens rápidas, na tela de Ajustes. */
 export default function ConfigAtendimento() {
@@ -65,7 +55,7 @@ function Atendimento({ respostas }) {
   }
 
   return (
-    <Cartao titulo="Atendimento"
+    <CartaoSecao titulo="Atendimento"
       descricao="Prazos que destacam as conversas em Conversas. Grupos e conversas encerradas ficam de fora.">
       <form onSubmit={salvar} className="space-y-4">
         <Campo rotulo="SLA de resposta"
@@ -88,7 +78,7 @@ function Atendimento({ respostas }) {
           {aviso && <span className={`text-sm ${aviso === "Salvo." ? "text-ok" : "text-alerta"}`}>{aviso}</span>}
         </div>
       </form>
-    </Cartao>
+    </CartaoSecao>
   );
 }
 
@@ -99,7 +89,7 @@ function MensagensRapidas({ respostas, onMudou }) {
   const [editando, setEditando] = useState(null); // null | {} (nova) | resposta
 
   return (
-    <Cartao titulo="Mensagens rápidas"
+    <CartaoSecao titulo="Mensagens rápidas"
       descricao="Atalhos que aparecem acima do campo de mensagem. Use {primeiro_nome} ou {nome} para já sair com o nome do contato.">
       {!respostas ? <EsqueletoLinhas n={3} foto={false} /> : (
         <div className="mb-4"><ListaMensagensRapidas respostas={respostas} onMudou={onMudou} onEditar={setEditando} /></div>
@@ -110,7 +100,7 @@ function MensagensRapidas({ respostas, onMudou }) {
         <EditarMensagem resposta={editando} proximaOrdem={respostas?.length ?? 0}
           onFechar={() => setEditando(null)} onSalvo={() => { setEditando(null); onMudou(); }} />
       )}
-    </Cartao>
+    </CartaoSecao>
   );
 }
 
@@ -147,7 +137,7 @@ export function ListaMensagensRapidas({ respostas, onMudou, onEditar }) {
 
   return (
     <>
-      {erro && <p role="alert" className="text-alerta text-sm mb-3">{erro}</p>}
+      <AvisoErro className="mb-3">{erro}</AvisoErro>
       <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={soltar}>
         <SortableContext items={lista.map((r) => r.id)} strategy={verticalListSortingStrategy}>
           <ul className="divide-y divide-linha border border-linha rounded-xl bg-superficie">

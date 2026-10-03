@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { sair, supabase } from "../lib/supabase";
-import { BotaoPrimario, BotaoSecundario, Campo, Entrada } from "../components/ui";
+import { AvisoErro, BotaoPrimario, BotaoSecundario, Campo, CartaoSecao, Entrada } from "../components/ui";
 import ConfigAtendimento from "../components/ConfigAtendimento";
 import ContatosBloqueados from "../components/ContatosBloqueados";
 import HistoricoConexao from "../components/HistoricoConexao";
@@ -53,9 +53,7 @@ export default function Configuracoes() {
     <div className="max-w-3xl mx-auto px-4 md:px-8 pt-6 pb-8">
       <h1 className="text-3xl font-bold mb-4">Configurações</h1>
 
-      {erro && (
-        <p role="alert" className="mb-4 rounded-lg bg-alerta/10 text-alerta px-4 py-3 text-sm">{erro}</p>
-      )}
+      <AvisoErro caixa className="mb-4">{erro}</AvisoErro>
 
       <Servidor info={info} ocupado={ocupado === "salvar"}
         onSalvar={(url, token) => executar("salvar", { url, token })} />
@@ -76,28 +74,20 @@ export default function Configuracoes() {
 
       <ContatosBloqueados />
 
-      <Cartao titulo="Sua senha">
+      <CartaoSecao titulo="Sua senha">
         <NovaSenha />
-      </Cartao>
+      </CartaoSecao>
 
-      <Cartao titulo="Este dispositivo">
+      <CartaoSecao titulo="Este dispositivo">
         <p className="text-sm text-tinta-suave mb-3">
           Sai só deste aparelho. Os outros dispositivos conectados com esta conta continuam entrando normalmente.
         </p>
         <BotaoSecundario type="button" onClick={sair}>Sair deste dispositivo</BotaoSecundario>
-      </Cartao>
+      </CartaoSecao>
     </div>
   );
 }
 
-function Cartao({ titulo, children }) {
-  return (
-    <section className="bg-superficie rounded-2xl border border-linha p-5 mb-5">
-      <h2 className="text-lg font-semibold mb-3">{titulo}</h2>
-      {children}
-    </section>
-  );
-}
 
 function Servidor({ info, ocupado, onSalvar }) {
   const [editando, setEditando] = useState(!info?.configurado);
@@ -117,19 +107,19 @@ function Servidor({ info, ocupado, onSalvar }) {
 
   if (!editando) {
     return (
-      <Cartao titulo="Servidor UAZAPI">
+      <CartaoSecao titulo="Servidor UAZAPI">
         <dl className="text-sm space-y-1 mb-4">
           <div className="flex gap-2"><dt className="text-tinta-suave w-16">Servidor</dt><dd className="break-all">{info.url}</dd></div>
           <div className="flex gap-2"><dt className="text-tinta-suave w-16">Token</dt><dd>•••• {info.tokenFinal}</dd></div>
         </dl>
         {info.erro && <p className="text-sm text-alerta mb-4">{info.erro}</p>}
         <BotaoSecundario onClick={() => setEditando(true)}>Alterar</BotaoSecundario>
-      </Cartao>
+      </CartaoSecao>
     );
   }
 
   return (
-    <Cartao titulo="Servidor UAZAPI">
+    <CartaoSecao titulo="Servidor UAZAPI">
       <p className="text-sm text-tinta-suave mb-4">
         Os dois dados ficam no painel da UAZAPI, na sua instância. O token fica guardado só no servidor
         do CRM e não aparece mais depois de salvo.
@@ -160,7 +150,7 @@ function Servidor({ info, ocupado, onSalvar }) {
           )}
         </div>
       </form>
-    </Cartao>
+    </CartaoSecao>
   );
 }
 
@@ -181,7 +171,7 @@ function Conexao({ instancia, ocupado, onConectar, onDesconectar }) {
   }
 
   return (
-    <Cartao titulo="WhatsApp">
+    <CartaoSecao titulo="WhatsApp">
       <p className="flex items-center gap-2 mb-4">
         <span className={`h-2.5 w-2.5 rounded-full ${rotulo.cor}`} />
         <span className="font-medium">{rotulo.texto}</span>
@@ -258,13 +248,13 @@ function Conexao({ instancia, ocupado, onConectar, onDesconectar }) {
           </p>
         </div>
       )}
-    </Cartao>
+    </CartaoSecao>
   );
 }
 
 function Webhook({ webhook, ocupado, onRefazer }) {
   return (
-    <Cartao titulo="Recebimento de mensagens">
+    <CartaoSecao titulo="Recebimento de mensagens">
       {webhook?.ok ? (
         <p className="text-sm mb-4">
           <span className="text-ok font-semibold">Ativo.</span> Mensagens de conversas e grupos aparecem em Conversas.
@@ -283,6 +273,6 @@ function Webhook({ webhook, ocupado, onRefazer }) {
       <BotaoSecundario onClick={onRefazer} disabled={ocupado}>
         {ocupado ? "Configurando…" : webhook?.ok ? "Configurar de novo" : "Configurar agora"}
       </BotaoSecundario>
-    </Cartao>
+    </CartaoSecao>
   );
 }

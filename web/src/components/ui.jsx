@@ -245,6 +245,46 @@ export function Vazio({ children }) {
   return <p className="text-tinta-suave text-sm py-3">{children}</p>;
 }
 
+/** Cartão de seção das telas de ajustes: título, explicação opcional e conteúdo. */
+export function CartaoSecao({ titulo, descricao, children }) {
+  return (
+    <section className="bg-superficie rounded-2xl border border-linha p-5 mb-5">
+      <h2 className={`text-lg font-semibold ${descricao ? "mb-1" : "mb-3"}`}>{titulo}</h2>
+      {descricao && <p className="text-sm text-tinta-suave mb-3">{descricao}</p>}
+      {children}
+    </section>
+  );
+}
+
+/** Mensagem de erro lida pelos leitores de tela. `caixa` dá fundo e borda arredondada. */
+export function AvisoErro({ children, caixa = false, className = "" }) {
+  if (!children) return null;
+  return (
+    <p role="alert" className={`text-sm text-alerta ${caixa ? "rounded-lg bg-alerta/10 px-4 py-3" : ""} ${className}`}>
+      {children}
+    </p>
+  );
+}
+
+/** Campo de busca com lupa e botão de limpar. `onMudar` recebe o texto. */
+export function CampoBusca({ valor, onMudar, placeholder, rotulo, className = "" }) {
+  return (
+    <div className={`relative ${className}`}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"
+        className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-tinta-suave pointer-events-none">
+        <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+      </svg>
+      <input type="search" value={valor} onChange={(e) => onMudar(e.target.value)}
+        placeholder={placeholder} aria-label={rotulo ?? placeholder}
+        className="w-full h-11 pl-10 pr-10 rounded-lg border border-linha bg-superficie text-base" />
+      {valor && (
+        <button type="button" onClick={() => onMudar("")} aria-label="Limpar busca"
+          className="absolute right-1 top-1/2 -translate-y-1/2 h-9 w-9 text-xl text-tinta-suave">×</button>
+      )}
+    </div>
+  );
+}
+
 // Mostra uma imagem em tela cheia, sem sair do sistema. Fecha no ×, no Esc ou clicando fora.
 export function PreviaImagem({ src, alt = "", onFechar }) {
   useEffect(() => {

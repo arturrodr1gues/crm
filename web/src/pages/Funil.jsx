@@ -14,7 +14,7 @@ import { FAIXAS } from "../lib/constantes";
 import { CAMPOS_PADRAO, carregarEtapas, classeCor, reordenarAbertas, tipoEtapa, useEtapas } from "../lib/etapas";
 import { dataCurta, diasDesde, formatarTelefone, inicioDoDia, nomeOuTelefone } from "../lib/format";
 import { buscarOportunidades, combina } from "../lib/funil";
-import { BotaoPrimario, BotaoSecundario, Campo, Entrada, Modal } from "../components/ui";
+import { BotaoPrimario, BotaoSecundario, Campo, CampoBusca, Entrada, Modal } from "../components/ui";
 import GerenciadorFunil, { IconeAlca, IconeCadeado } from "../components/GerenciadorFunil";
 import VisaoFunil from "../components/VisaoFunil";
 import { EsqueletoFunil } from "../components/Esqueletos";
@@ -202,16 +202,8 @@ export default function Funil() {
             </button>
           </div>
         </div>
-        <div className="relative max-w-md">
-          <IconeBusca className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-tinta-suave pointer-events-none" />
-          <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar por nome, telefone ou bairro" aria-label="Buscar no funil"
-            className="w-full h-11 pl-10 pr-10 rounded-lg border border-linha bg-superficie text-base" />
-          {busca && (
-            <button type="button" onClick={() => setBusca("")} aria-label="Limpar busca"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-9 w-9 text-xl text-tinta-suave">×</button>
-          )}
-        </div>
+        <CampoBusca valor={busca} onMudar={setBusca} className="max-w-md"
+          placeholder="Buscar por nome, telefone ou bairro" rotulo="Buscar no funil" />
         {busca.trim() && (
           <p className="text-sm text-tinta-suave">
             {encontrados === 0 ? "Nenhum card encontrado" : `${encontrados} ${encontrados === 1 ? "card encontrado" : "cards encontrados"}`}
@@ -401,11 +393,6 @@ function Etiqueta({ children, cor }) {
   return <span className={`px-2 py-0.5 rounded-full ${estilo}`}>{children}</span>;
 }
 
-function IconeBusca(p) {
-  return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}>
-    <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
-  </svg>);
-}
 function IconeAjustes(p) {
   return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
     <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" />

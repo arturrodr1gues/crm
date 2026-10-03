@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { dataCurta, formatarTelefone, nomeOuTelefone } from "../lib/format";
 import ConfirmarAcaoContatos from "./ConfirmarAcaoContatos";
 import { EsqueletoLinhas } from "./Esqueletos";
+import { CartaoSecao } from "./ui";
 
 /** Ajustes: contatos e grupos bloqueados, para desbloquear ou excluir (um ou vários). */
 export default function ContatosBloqueados() {
@@ -24,11 +25,8 @@ export default function ContatosBloqueados() {
   const alternar = (id) => setSelecao((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   return (
-    <section className="bg-superficie rounded-2xl border border-linha p-5 mb-5">
-      <h2 className="text-lg font-semibold mb-1">Contatos bloqueados</h2>
-      <p className="text-sm text-tinta-suave mb-3">
-        Mensagens desses contatos não chegam ao CRM. Para bloquear, use "Selecionar" na lista de Conversas ou os detalhes da conversa.
-      </p>
+    <CartaoSecao titulo="Contatos bloqueados"
+      descricao={'Mensagens desses contatos não chegam ao CRM. Para bloquear, use "Selecionar" na lista de Conversas ou os detalhes da conversa.'}>
 
       {lista === null ? <EsqueletoLinhas n={3} />
         : lista.length === 0 ? <p className="text-sm text-tinta-suave py-2">Nenhum contato bloqueado.</p> : (
@@ -76,6 +74,6 @@ export default function ContatosBloqueados() {
       {confirmar && (
         <ConfirmarAcaoContatos acao={confirmar} ids={escolhidos} onFechar={() => setConfirmar(null)} onFeito={carregar} />
       )}
-    </section>
+    </CartaoSecao>
   );
 }

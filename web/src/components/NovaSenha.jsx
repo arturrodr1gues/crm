@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
-import { BotaoPrimario, Campo, Entrada } from "./ui";
+import { AvisoErro, BotaoPrimario, Campo, Entrada } from "./ui";
 
 const MINIMO = 8;
 
@@ -43,7 +43,7 @@ export default function NovaSenha({ onSalva, rotuloBotao = "Salvar nova senha" }
         <Entrada type="password" required autoComplete="new-password" value={confirma}
           onChange={(e) => setConfirma(e.target.value)} />
       </Campo>
-      {erro && <p role="alert" className="text-alerta text-sm">{erro}</p>}
+      <AvisoErro>{erro}</AvisoErro>
       {salva && <p className="text-ok text-sm">Senha trocada.</p>}
       <BotaoPrimario type="submit" disabled={salvando}>{salvando ? "Salvando…" : rotuloBotao}</BotaoPrimario>
     </form>

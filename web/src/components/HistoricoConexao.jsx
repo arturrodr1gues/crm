@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { EsqueletoLinhas } from "./Esqueletos";
+import { CartaoSecao } from "./ui";
 
 const QUANTOS = 30;
 
@@ -35,11 +36,8 @@ export default function HistoricoConexao() {
   }, []);
 
   return (
-    <section className="bg-superficie rounded-2xl border border-linha p-5 mb-5">
-      <h2 className="text-lg font-semibold mb-1">Histórico da conexão</h2>
-      <p className="text-sm text-tinta-suave mb-3">
-        Quando o WhatsApp conectou e caiu. Enquanto estiver desconectado, nenhuma mensagem chega nem sai pelo CRM.
-      </p>
+    <CartaoSecao titulo="Histórico da conexão"
+      descricao="Quando o WhatsApp conectou e caiu. Enquanto estiver desconectado, nenhuma mensagem chega nem sai pelo CRM.">
       {lista === null ? <EsqueletoLinhas n={3} foto={false} />
         : lista.length === 0 ? <p className="text-sm text-tinta-suave py-2">Nenhum registro ainda. Aparece aqui a partir da próxima mudança.</p> : (
         <ol className="max-h-80 overflow-y-auto divide-y divide-linha">
@@ -64,6 +62,6 @@ export default function HistoricoConexao() {
           })}
         </ol>
       )}
-    </section>
+    </CartaoSecao>
   );
 }
