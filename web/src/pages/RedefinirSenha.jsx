@@ -1,4 +1,4 @@
-import { supabase } from "../lib/supabase";
+import { sair } from "../lib/supabase";
 import NovaSenha from "../components/NovaSenha";
 
 // Aberta pelo link do e-mail de recuperação. O Supabase já entra com a sessão
@@ -24,7 +24,7 @@ export default function RedefinirSenha({ sessao }) {
             <p className="text-tinta-suave">
               Esse link expirou ou já foi usado. Peça um novo na tela de entrada, em "Esqueci minha senha".
             </p>
-            <button type="button" onClick={async () => { await supabase.auth.signOut(); irParaInicio(); }}
+            <button type="button" onClick={async () => { await sair(); irParaInicio(); }}
               className="w-full h-12 rounded-lg bg-sol text-tinta font-semibold">
               Voltar para a entrada
             </button>

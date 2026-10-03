@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
-import { supabase } from "./lib/supabase";
+import { sair, supabase } from "./lib/supabase";
+import { MembroContext } from "./lib/equipe";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import RedefinirSenha from "./pages/RedefinirSenha";
@@ -27,7 +28,7 @@ export default function App() {
 
   useEffect(() => {
     if (!sessao) { setMembro(undefined); return; }
-    supabase.from("equipe").select("nome").eq("user_id", sessao.user.id).maybeSingle()
+    supabase.from("equipe").select("nome, papel, leitura_silenciosa").eq("user_id", sessao.user.id).maybeSingle()
       .then(({ data }) => setMembro(data ?? null));
   }, [sessao]);
 
@@ -49,7 +50,7 @@ export default function App() {
 {`insert into equipe (user_id, nome)
 values ('${sessao.user.id}', 'Artur');`}
           </pre>
-          <button onClick={() => supabase.auth.signOut()} className="mt-4 underline text-tinta-suave">
+          <button onClick={sair} className="mt-4 underline text-tinta-suave">
             Sair
           </button>
         </div>
@@ -58,6 +59,7 @@ values ('${sessao.user.id}', 'Artur');`}
   }
 
   return (
+    <MembroContext.Provider value={membro}>
     <Layout>
       <Routes>
         <Route path="/" element={<Hoje />} />
@@ -75,6 +77,7 @@ values ('${sessao.user.id}', 'Artur');`}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Layout>
+    </MembroContext.Provider>
   );
 }
 

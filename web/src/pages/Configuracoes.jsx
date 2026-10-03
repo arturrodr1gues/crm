@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { sair, supabase } from "../lib/supabase";
 import { BotaoPrimario, BotaoSecundario, Campo, Entrada } from "../components/ui";
 import ConfigAtendimento from "../components/ConfigAtendimento";
 import ContatosBloqueados from "../components/ContatosBloqueados";
@@ -78,6 +78,13 @@ export default function Configuracoes() {
 
       <Cartao titulo="Sua senha">
         <NovaSenha />
+      </Cartao>
+
+      <Cartao titulo="Este dispositivo">
+        <p className="text-sm text-tinta-suave mb-3">
+          Sai só deste aparelho. Os outros dispositivos conectados com esta conta continuam entrando normalmente.
+        </p>
+        <BotaoSecundario type="button" onClick={sair}>Sair deste dispositivo</BotaoSecundario>
       </Cartao>
     </div>
   );

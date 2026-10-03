@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import { sair, supabase } from "../lib/supabase";
 import NovoContato from "./NovoContato";
 import { usePreferencia } from "../lib/preferencias";
+import { useMembro } from "../lib/equipe";
 
 const itens = [
   { to: "/", nome: "Hoje", icone: IconeSol },
@@ -20,6 +21,7 @@ export default function Layout({ children }) {
   const naFichaDoCliente = /^\/conversas\/[^/]+/.test(pathname);
   // Menu do computador recolhido: só os ícones.
   const [recolhido, setRecolhido] = usePreferencia("crm-menu-recolhido", false);
+  const { leitura_silenciosa: silenciosa } = useMembro();
 
   async function contar() {
     // Grupos ficam fora do contador para não esconder as mensagens de clientes.
@@ -48,6 +50,12 @@ export default function Layout({ children }) {
             <IconeRecolher className={`w-5 h-5 ${recolhido ? "rotate-180" : ""}`} />
           </button>
         </div>
+        {silenciosa && (
+          <div title="Abrir conversas não marca como lida nem manda o visto"
+            className={`-mt-4 mb-3 rounded-lg bg-white/10 text-white/80 text-xs ${recolhido ? "text-center py-1" : "px-3 py-2"}`}>
+            {recolhido ? "Adm" : "Admin · leitura silenciosa"}
+          </div>
+        )}
         {itens.map((i) => (
           <NavLink key={i.to} to={i.to} end={i.to === "/"} title={recolhido ? i.nome : undefined} aria-label={i.nome}
             className={({ isActive }) =>
@@ -64,7 +72,7 @@ export default function Layout({ children }) {
           className={`mt-4 h-11 rounded-lg bg-sol text-tinta font-semibold ${recolhido ? "text-2xl font-light" : ""}`}>
           {recolhido ? "+" : "Novo contato"}
         </button>
-        <button onClick={() => supabase.auth.signOut()} title={recolhido ? "Sair" : undefined}
+        <button onClick={sair} title={recolhido ? "Sair deste dispositivo" : undefined}
           className={`mt-auto text-white/60 text-sm ${recolhido ? "text-center" : "text-left px-3"}`}>
           Sair
         </button>

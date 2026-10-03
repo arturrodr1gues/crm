@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
   const { data: { user } } = await admin.auth.getUser(authHeader.replace("Bearer ", ""));
   if (!user) return json({ error: "sessão inválida" }, 401);
 
-  const { data: membro } = await admin.from("equipe").select("user_id").eq("user_id", user.id).maybeSingle();
+  const { data: membro } = await admin.from("equipe").select("user_id, leitura_silenciosa").eq("user_id", user.id).maybeSingle();
   if (!membro) return json({ error: "sem permissão" }, 403);
 
   const body = await req.json().catch(() => ({}));
@@ -57,7 +57,11 @@ Deno.serve(async (req) => {
 
   try {
     if (["reagir", "editar", "apagar", "votar"].includes(acao)) return json(await sobreMensagem(cfg, acao, body));
-    if (acao === "marcar_lidas") return json(await marcarConversaLida(cfg, body.contato_id));
+    if (acao === "marcar_lidas") {
+      // Login de leitura silenciosa só acompanha: não manda o "visto".
+      if (membro.leitura_silenciosa) return json({ marcadas: 0 });
+      return json(await marcarConversaLida(cfg, body.contato_id));
+    }
     if (acao === "atualizar_contatos") return json(await atualizarContatos(cfg, body.ids));
     if (acao === "verificar_conexao") return json(await verificarConexao(cfg));
     return await novaMensagem(cfg, user.id, acao, body);

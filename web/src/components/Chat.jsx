@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { dataCurta, formatarTelefone, nomeOuTelefone } from "../lib/format";
 import { chamarWhatsapp, subirMidia, tipoDoArquivo } from "../lib/whatsapp";
+import { useMembro } from "../lib/equipe";
 import { SeloEtapa } from "./ui";
 import { duracaoCurta, estadoAtendimento, useAgora, useAtendimentoConfig } from "../lib/atendimento";
 import Bolha from "./chat/Bolha";
@@ -44,9 +45,12 @@ export default function Chat({ contato, etapa, irParaMensagem }) {
   const irDepois = useRef(null);     // mensagem citada para mostrar quando a página dela chegar
   const contatoAtual = useRef(contato.id);
   contatoAtual.current = contato.id;
+  const { leitura_silenciosa: silenciosa } = useMembro();
 
   // Zera o contador e manda o "visto" para quem escreveu (✓✓ azul no celular da pessoa).
+  // No login de leitura silenciosa (admin acompanhando), a conversa fica como estava.
   function marcarLida() {
+    if (silenciosa) return;
     supabase.from("contatos").update({ nao_lidas: 0 }).eq("id", contato.id).then(() => {});
     clearTimeout(vistoPendente.current);
     vistoPendente.current = setTimeout(() => {
