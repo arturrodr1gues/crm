@@ -43,13 +43,10 @@ export default function App() {
       <div className="min-h-full grid place-items-center p-6">
         <div className="max-w-md bg-superficie rounded-2xl p-6 border border-linha">
           <h1 className="text-xl font-semibold mb-2">Acesso ainda não liberado</h1>
-          <p className="text-tinta-suave mb-4">
-            Sua conta entrou, mas ainda não faz parte da equipe do CRM. Rode no SQL Editor do Supabase:
+          <p className="text-tinta-suave">
+            Sua conta ({sessao.user.email}) entrou, mas ainda não faz parte da equipe do CRM.
+            Peça ao administrador para liberar o seu acesso.
           </p>
-          <pre className="bg-fundo rounded-lg p-3 text-sm overflow-x-auto">
-{`insert into equipe (user_id, nome)
-values ('${sessao.user.id}', 'Artur');`}
-          </pre>
           <button onClick={sair} className="mt-4 underline text-tinta-suave">
             Sair
           </button>

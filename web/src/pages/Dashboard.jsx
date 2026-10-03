@@ -162,7 +162,7 @@ export default function Dashboard() {
         {carregando && dados && <span className="text-sm text-tinta-suave">Atualizando…</span>}
       </div>
 
-      {erro ? <AvisoErro erro={erro} />
+      {erro ? <AvisoErro />
         : !dados ? <EsqueletoDashboard />
         : <Paineis d={dados.atual} ant={dados.anterior} agrupar={agrupar} />}
     </div>
@@ -384,16 +384,11 @@ function BarrasHorizontais({ itens, vazio }) {
   );
 }
 
-function AvisoErro({ erro }) {
-  const faltaFuncao = /dashboard_kpis|function|schema cache/i.test(erro);
+function AvisoErro() {
   return (
     <div className="bg-superficie rounded-2xl border border-linha p-5">
       <p className="font-semibold">Não foi possível carregar os indicadores.</p>
-      <p className="text-sm text-tinta-suave mt-1">
-        {faltaFuncao
-          ? <>Rode a migration <code>supabase/migrations/0007_dashboard.sql</code> no SQL Editor do Supabase e recarregue a página.</>
-          : erro}
-      </p>
+      <p className="text-sm text-tinta-suave mt-1">Recarregue a página. Se continuar, avise o administrador.</p>
     </div>
   );
 }
