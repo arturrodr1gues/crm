@@ -17,6 +17,7 @@ const COLUNAS = "id, nome, telefone, ultima_mensagem, ultima_mensagem_em, nao_li
 
 // Contatos por página: a lista começa com 10 e busca mais 10 ao chegar no fim.
 const PAGINA = 10;
+const ESPERA_PAGINA_MS = 400; // indicador na tela antes de buscar a próxima página
 // Foto de perfil é buscada de novo depois desse tempo (a pessoa pode ter trocado).
 const VALIDADE_FOTO_MS = 3 * 24 * 3600 * 1000;
 // Contatos que já pediram foto nesta visita, para não repetir a cada recarga da lista.
@@ -53,6 +54,8 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
   const [confirmar, setConfirmar] = useState(null); // bloquear | excluir
   const [limite, setLimite] = useState(PAGINA);
   const [temMais, setTemMais] = useState(false);
+  const [carregandoMais, setCarregandoMais] = useState(false);
+  const alvo = useRef(PAGINA); // limite que a próxima página vai pedir
   const [mensagensAchadas, setMensagensAchadas] = useState([]); // busca dentro das mensagens
   const fimDaLista = useRef(null);
   const navigate = useNavigate();
@@ -95,6 +98,7 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
     ]);
     setLista(data ?? []);
     setTemMais((data?.length ?? 0) === limite);
+    if (limite >= alvo.current) setCarregandoMais(false); // a página pedida chegou
     setContagem({ sla: sla.count ?? 0, followup: followup.count ?? 0 });
     setMensagensAchadas(achadas);
     pedirFotos(data ?? []);
@@ -111,8 +115,17 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
     }
   }
 
+  // Próxima página: mostra o indicador e só busca depois de um instante, para a lista
+  // não crescer de repente. `alvo` evita pedir duas vezes a mesma página.
+  function proximaPagina() {
+    if (carregandoMais) return;
+    alvo.current = limite + PAGINA;
+    setCarregandoMais(true);
+    setTimeout(() => setLimite(alvo.current), ESPERA_PAGINA_MS);
+  }
+
   // Busca/aba/filtro novos começam de novo na primeira página.
-  useEffect(() => { setLimite(PAGINA); }, [busca, aba, filtro]);
+  useEffect(() => { alvo.current = PAGINA; setLimite(PAGINA); setCarregandoMais(false); }, [busca, aba, filtro]);
 
   // Recarrega ao mudar filtro/busca/página e a cada minuto (os prazos de SLA e follow-up andam sozinhos).
   useEffect(() => {
@@ -122,12 +135,12 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
 
   // Chegou no fim da lista: próxima página.
   useEffect(() => {
-    const alvo = fimDaLista.current;
-    if (!alvo || !temMais) return;
-    const obs = new IntersectionObserver(([e]) => e.isIntersecting && setLimite((l) => l + PAGINA), { rootMargin: "200px" });
-    obs.observe(alvo);
+    const fim = fimDaLista.current;
+    if (!fim || !temMais || carregandoMais) return;
+    const obs = new IntersectionObserver(([e]) => e.isIntersecting && proximaPagina(), { threshold: 1 });
+    obs.observe(fim);
     return () => obs.disconnect();
-  }, [temMais, lista]);
+  }, [temMais, lista, carregandoMais]);
 
   // Tempo real: o canal fica aberto e sempre chama a versão atual de carregar (com os filtros de agora).
   // Várias mudanças juntas (ex.: fotos de uma página chegando) viram uma recarga só.
@@ -309,13 +322,18 @@ export default function ListaConversas({ lateral = false, ativa, onRecolher }) {
             })}
           </ul>
         )}
-        {/* Fim da página: ao aparecer na tela, busca os próximos 10 */}
+        {/* Fim da página: ao aparecer inteiro na tela, busca os próximos 10 */}
         {temMais && (
-          <div ref={fimDaLista} className="py-3 flex justify-center">
-            <button type="button" onClick={() => setLimite((l) => l + PAGINA)}
-              className="text-xs px-3 h-7 rounded-full bg-superficie border border-linha text-tinta-suave hover:text-tinta">
-              Carregar mais conversas
-            </button>
+          <div ref={fimDaLista} className="py-3 h-13 flex justify-center items-center">
+            {carregandoMais ? (
+              <span role="status" aria-label="Carregando mais conversas"
+                className="h-5 w-5 rounded-full border-2 border-linha border-t-sol animate-spin" />
+            ) : (
+              <button type="button" onClick={proximaPagina}
+                className="text-xs px-3 h-7 rounded-full bg-superficie border border-linha text-tinta-suave hover:text-tinta">
+                Carregar mais conversas
+              </button>
+            )}
           </div>
         )}
 

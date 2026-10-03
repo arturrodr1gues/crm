@@ -18,6 +18,9 @@ const ordenar = (lista) => [...lista].sort((a, b) => new Date(a.momento) - new D
 
 // Mensagens por página: a conversa abre com as mais recentes e busca as antigas ao rolar para cima.
 const PAGINA = 15;
+const PERTO_DO_TOPO = 60;       // px do topo em que conta como "chegou lá"
+const ESPERA_NO_TOPO_MS = 300;  // quanto tempo parado no topo antes de buscar
+const GIRO_MINIMO_MS = 450;     // tempo mínimo do indicador de carregando
 const maisRecentes = (contatoId) => supabase.from("mensagens").select(COLUNAS).eq("contato_id", contatoId)
   .order("momento", { ascending: false }).order("id", { ascending: false }).limit(PAGINA);
 
@@ -42,6 +45,8 @@ export default function Chat({ contato, etapa, irParaMensagem }) {
   const rolagem = useRef(null);
   const ajuste = useRef(null);       // distância do fim antes de pôr mensagens antigas em cima
   const carregando = useRef(false);
+  const ultimoTopo = useRef(0);      // para saber se a rolagem é para cima
+  const esperaTopo = useRef(null);
   const irDepois = useRef(null);     // mensagem citada para mostrar quando a página dela chegar
   const contatoAtual = useRef(contato.id);
   contatoAtual.current = contato.id;
@@ -94,6 +99,7 @@ export default function Chat({ contato, etapa, irParaMensagem }) {
     return () => {
       ativo = false;
       clearTimeout(vistoPendente.current);
+      clearTimeout(esperaTopo.current);
       supabase.removeChannel(canal);
       document.removeEventListener("visibilitychange", aoVoltar);
     };
@@ -151,7 +157,8 @@ export default function Chat({ contato, etapa, irParaMensagem }) {
     } else {
       q = q.limit(PAGINA);
     }
-    const { data } = await q;
+    // O indicador fica um mínimo na tela, para a página nova não "pular" do nada.
+    const [{ data }] = await Promise.all([q, ate ? null : new Promise((r) => setTimeout(r, GIRO_MINIMO_MS))]);
     carregando.current = false;
     setCarregandoMais(false);
     if (conversa !== contatoAtual.current) return; // trocou de conversa no meio
@@ -161,8 +168,17 @@ export default function Chat({ contato, etapa, irParaMensagem }) {
     if (!ate || !irDepois.current) setTemMais((data?.length ?? 0) === PAGINA);
   }
 
+  // Só busca quando a pessoa sobe até o topo e para ali um instante. Rolagens do próprio
+  // sistema (descer ao abrir, manter a posição) são para baixo e não contam.
   function aoRolar(e) {
-    if (e.currentTarget.scrollTop < 150 && temMais && !carregando.current) carregarAnteriores();
+    const topo = e.currentTarget.scrollTop;
+    const subindo = topo < ultimoTopo.current;
+    ultimoTopo.current = topo;
+    clearTimeout(esperaTopo.current);
+    if (!subindo || topo > PERTO_DO_TOPO || !temMais || carregando.current) return;
+    esperaTopo.current = setTimeout(() => {
+      if ((rolagem.current?.scrollTop ?? Infinity) <= PERTO_DO_TOPO) carregarAnteriores();
+    }, ESPERA_NO_TOPO_MS);
   }
 
   const porMessageId = useMemo(
