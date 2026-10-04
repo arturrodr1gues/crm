@@ -4,6 +4,7 @@ import { dataCurta, formatarTelefone, nomeOuTelefone } from "../lib/format";
 import { chamarWhatsapp, subirMidia, tipoDoArquivo } from "../lib/whatsapp";
 import { useMembro } from "../lib/equipe";
 import { SeloEtapa } from "./ui";
+import SeletorEtapa from "./SeletorEtapa";
 import { duracaoCurta, estadoAtendimento, useAgora, useAtendimentoConfig } from "../lib/atendimento";
 import Bolha from "./chat/Bolha";
 import Compositor from "./chat/Compositor";
@@ -25,7 +26,7 @@ const maisRecentes = (contatoId) => supabase.from("mensagens").select(COLUNAS).e
   .order("momento", { ascending: false }).order("id", { ascending: false }).limit(PAGINA);
 
 // `irParaMensagem`: message_id vindo da busca; a conversa abre rolada até ela.
-export default function Chat({ contato, etapa, irParaMensagem }) {
+export default function Chat({ contato, etapa, onMudarEtapa, irParaMensagem }) {
   const [msgs, setMsgs] = useState([]);
   const [erro, setErro] = useState("");
   const [respostas, setRespostas] = useState([]);
@@ -347,10 +348,12 @@ export default function Chat({ contato, etapa, irParaMensagem }) {
           );
         })}
       </div>
-      {/* Onde o lead está no funil, sempre à vista no canto da conversa */}
+      {/* Onde o lead está no funil, sempre à vista no canto da conversa; clicar muda a etapa */}
       {etapa && (
-        <div className="absolute bottom-3 right-4 pointer-events-none rounded-full bg-superficie shadow-md">
-          <SeloEtapa etapa={etapa} grande />
+        <div className="absolute bottom-3 right-4">
+          {onMudarEtapa ? <SeletorEtapa etapa={etapa} onMudar={onMudarEtapa} /> : (
+            <div className="pointer-events-none rounded-full bg-superficie shadow-md"><SeloEtapa etapa={etapa} grande /></div>
+          )}
         </div>
       )}
       </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { tipoEtapa } from "./etapas";
 
 /**
  * Contato + oportunidade mais recente, em tempo real. Usado pela conversa e pela página do lead.
@@ -48,5 +49,17 @@ export default function useContato(id) {
     await carregar();
   }
 
-  return { contato, op, carregar, alternarEncerrada, classificar };
+  // Muda a etapa do funil direto da conversa. Vai para o fim da coluna nova, como o botão
+  // "Avançar" do quadro; o banco atualiza a data da etapa e o histórico.
+  async function mudarEtapa(etapa, motivo = null) {
+    if (!op || (op.etapa === etapa && !motivo)) return;
+    const patch = { etapa, posicao: null, motivo_perda: tipoEtapa(etapa) === "perdido" ? motivo : null };
+    const antes = op;
+    setOp((o) => ({ ...o, ...patch }));
+    const { error } = await supabase.from("oportunidades").update(patch).eq("id", op.id);
+    if (error) { setOp(antes); throw new Error("Não foi possível mudar a etapa. Tente de novo."); }
+    await carregar();
+  }
+
+  return { contato, op, carregar, alternarEncerrada, classificar, mudarEtapa };
 }

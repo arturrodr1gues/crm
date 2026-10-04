@@ -19,7 +19,7 @@ export default function Contato() {
   const { id } = useParams();
   const [params] = useSearchParams();
   const mensagemBuscada = params.get("msg"); // veio da busca por mensagens
-  const { contato, op, carregar, alternarEncerrada, classificar } = useContato(id);
+  const { contato, op, carregar, alternarEncerrada, classificar, mudarEtapa } = useContato(id);
   const [aba, setAba] = useState("conversa"); // celular: conversa | detalhes
   const larga = useMidia(TELA_LARGA);
   const md = useMidia("(min-width: 768px)");
@@ -114,7 +114,7 @@ export default function Contato() {
       <div className={`flex-1 min-h-0 md:grid md:grid-rows-[minmax(0,1fr)] ${
         painelAberto ? "md:grid-cols-[minmax(0,1fr)_380px]" : "md:grid-cols-[minmax(0,1fr)]"}`}>
         <div className={`h-full min-h-0 ${aba === "conversa" ? "block" : "hidden"} md:block`}>
-          <Chat contato={contato} etapa={grupo ? null : op?.etapa} irParaMensagem={mensagemBuscada} />
+          <Chat contato={contato} etapa={grupo ? null : op?.etapa} onMudarEtapa={mudarEtapa} irParaMensagem={mensagemBuscada} />
         </div>
         {mostrarPainel && (
           <div className={`relative h-full overflow-y-auto overscroll-contain border-l border-linha bg-fundo ${aba === "detalhes" ? "block" : "hidden"} md:block`}>
