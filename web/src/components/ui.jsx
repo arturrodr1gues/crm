@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { createPortal } from "react-dom";
 import { nomeEtapa, tipoEtapa, useEtapas } from "../lib/etapas";
 import { semAcento } from "../lib/funil";
+import { zoomDaPagina } from "../lib/zoom";
 
 export function Modal({ titulo, onFechar, children, estreito }) {
   useEffect(() => {
@@ -44,8 +45,9 @@ export const Entrada = (props) => <input {...props} className={`${baseInput} ${p
 
 // Painel flutuante preso a um elemento (opções de um seletor, sugestões de busca).
 // Vai para o <body> para não ser cortado por modais ou áreas com rolagem, e abre
-// para cima quando não cabe embaixo.
-export function Flutuante({ ancora, onFechar, children, className = "", ...props }) {
+// para cima quando não cabe embaixo. `direita` alinha pela borda direita do elemento
+// (para âncoras pequenas no canto da tela) e deixa a largura seguir o conteúdo.
+export function Flutuante({ ancora, onFechar, children, className = "", direita = false, ...props }) {
   const painel = useRef(null);
   const [pos, setPos] = useState(null);
 
@@ -53,15 +55,18 @@ export function Flutuante({ ancora, onFechar, children, className = "", ...props
   posicionar.current = () => {
     const el = ancora.current;
     if (!el || !painel.current) return;
-    const r = el.getBoundingClientRect();
-    const abaixo = window.innerHeight - r.bottom - 12;
+    const z = zoomDaPagina();
+    const t = el.getBoundingClientRect();
+    const r = { top: t.top / z, bottom: t.bottom / z, left: t.left / z, width: t.width / z };
+    const altura = window.innerHeight / z;
+    const abaixo = altura - r.bottom - 12;
     const acima = r.top - 12;
     const desejada = Math.min(painel.current.scrollHeight, ALTURA_PAINEL);
     const paraCima = abaixo < desejada && acima > abaixo;
     const novo = {
-      left: r.left, width: r.width,
+      ...(direita ? { right: window.innerWidth / z - r.left - r.width, minWidth: r.width } : { left: r.left, width: r.width }),
       maxHeight: Math.min(ALTURA_PAINEL, paraCima ? acima : abaixo),
-      ...(paraCima ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 }),
+      ...(paraCima ? { bottom: altura - r.top + 4 } : { top: r.bottom + 4 }),
     };
     setPos((p) => (JSON.stringify(p) === JSON.stringify(novo) ? p : novo));
   };

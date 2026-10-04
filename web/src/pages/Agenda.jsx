@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { nomeTipo, TIPOS_AGENDA } from "../lib/constantes";
 import { inicioDoDia, nomeOuTelefone } from "../lib/format";
 import { usePreferencia } from "../lib/preferencias";
+import { zoomDaPagina } from "../lib/zoom";
 import EventoForm from "../components/EventoForm";
 import { EsqueletoAgenda } from "../components/Esqueletos";
 
@@ -303,7 +304,7 @@ function ColunaDia({ dia, eventos, agora, onAbrir, onNovo }) {
 
   // Clique num horário vazio cria um compromisso ali, arredondado para a meia hora
   function clicar(ev) {
-    const y = ev.clientY - ev.currentTarget.getBoundingClientRect().top;
+    const y = (ev.clientY - ev.currentTarget.getBoundingClientRect().top) / zoomDaPagina();
     const d = new Date(dia);
     d.setHours(0, Math.floor((y / HORA_PX) * 2) * 30, 0, 0);
     onNovo(d);
