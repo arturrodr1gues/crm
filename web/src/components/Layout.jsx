@@ -38,12 +38,28 @@ export default function Layout({ children }) {
   }, []);
 
   return (
-    <div className="h-dvh flex flex-col md:flex-row overflow-hidden">
+    <div className="h-full flex flex-col md:flex-row overflow-hidden">
       {/* Menu lateral no computador */}
       <aside className={`hidden md:flex md:flex-col ${recolhido ? "w-16 px-2" : "w-56 px-4"} shrink-0 bg-tinta text-white py-4 gap-1 h-full overflow-y-auto`}>
         <div className={`flex items-center gap-2 mb-6 ${recolhido ? "flex-col" : "px-2"}`}>
-          <span className="h-3 w-3 shrink-0 rounded-full bg-sol" />
-          {!recolhido && <span className="font-bold text-lg flex-1">CRM Solar</span>}
+          {/* Personagem da marca no meio de um sol, enquadrado no rosto */}
+          <span className="relative h-13 w-13 shrink-0 grid place-items-center">
+            {/* Raios do sol, com um respiro entre eles e a borda da foto */}
+            <svg viewBox="0 0 52 52" aria-hidden="true" className="absolute inset-0 text-sol">
+              {Array.from({ length: 12 }, (_, i) => (
+                <line key={i} x1="26" y1="1" x2="26" y2="4.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                  transform={`rotate(${i * 30} 26 26)`} />
+              ))}
+            </svg>
+            <span className="relative h-8 w-8 rounded-full overflow-hidden bg-white ring-2 ring-sol">
+              <img src="/personagem.png" alt="" className="w-[250%] max-w-none -ml-[69%] -mt-[13%]" />
+            </span>
+          </span>
+          {!recolhido && (
+            <span className="font-bold text-lg flex-1 min-w-0 flex flex-col leading-none">
+              <span>CRM</span><span>Energy</span>
+            </span>
+          )}
           <button type="button" onClick={() => setRecolhido(!recolhido)}
             aria-label={recolhido ? "Expandir menu" : "Recolher menu"} title={recolhido ? "Expandir menu" : "Recolher menu"}
             className="h-8 w-8 grid place-items-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white">

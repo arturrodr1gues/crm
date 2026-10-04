@@ -40,7 +40,7 @@ export default function Login() {
       <form onSubmit={recuperando ? enviarLink : entrar} className="w-full max-w-sm bg-superficie rounded-2xl p-6 space-y-4">
         <div>
           <div className="h-1.5 w-12 rounded-full bg-sol mb-4" />
-          <h1 className="text-2xl font-bold">{recuperando ? "Recuperar senha" : "CRM Solar"}</h1>
+          <h1 className="text-2xl font-bold">{recuperando ? "Recuperar senha" : "CRM Energy"}</h1>
           <p className="text-tinta-suave">
             {recuperando ? "Enviamos um link para você criar uma senha nova." : "Entre para ver o seu dia."}
           </p>
