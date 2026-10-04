@@ -20,6 +20,7 @@ const ordenar = (lista) => [...lista].sort((a, b) => new Date(a.momento) - new D
 // Mensagens por página: a conversa abre com as mais recentes e busca as antigas ao rolar para cima.
 const PAGINA = 15;
 const PERTO_DO_TOPO = 60;       // px do topo em que conta como "chegou lá"
+const PERTO_DO_FIM = 80;        // px do fim em que ainda conta como "vendo a última mensagem"
 const ESPERA_NO_TOPO_MS = 300;  // quanto tempo parado no topo antes de buscar
 const GIRO_MINIMO_MS = 450;     // tempo mínimo do indicador de carregando
 const maisRecentes = (contatoId) => supabase.from("mensagens").select(COLUNAS).eq("contato_id", contatoId)
@@ -47,6 +48,8 @@ export default function Chat({ contato, etapa, onMudarEtapa, irParaMensagem }) {
   const ajuste = useRef(null);       // distância do fim antes de pôr mensagens antigas em cima
   const carregando = useRef(false);
   const ultimoTopo = useRef(0);      // para saber se a rolagem é para cima
+  const noFim = useRef(true);        // a pessoa está vendo a última mensagem
+  const conteudoRef = useRef(null);
   const esperaTopo = useRef(null);
   const irDepois = useRef(null);     // mensagem citada para mostrar quando a página dela chegar
   const contatoAtual = useRef(contato.id);
@@ -69,6 +72,7 @@ export default function Chat({ contato, etapa, onMudarEtapa, irParaMensagem }) {
   useEffect(() => {
     let ativo = true;
     setMsgs([]); setRespondendo(null); setErro(""); setTemMais(false); setIniciada(false);
+    noFim.current = true; // conversa nova abre na última mensagem
     // Só a página mais recente; as anteriores vêm ao rolar para cima.
     maisRecentes(contato.id)
       .then(({ data, error }) => {
@@ -110,11 +114,21 @@ export default function Chat({ contato, etapa, onMudarEtapa, irParaMensagem }) {
   // Paginação: páginas de PAGINA mensagens, as mais antigas carregam ao chegar no topo.
   // ---------------------------------------------------------------------
   const ultimaId = msgs[msgs.length - 1]?.id;
-  // Mensagem nova no fim (ou a primeira página): desce até ela.
-  useEffect(() => {
+  // Mensagem nova no fim (ou a primeira página): desce até ela antes de desenhar a tela.
+  useLayoutEffect(() => {
     const el = rolagem.current;
     if (el && ajuste.current === null) el.scrollTop = el.scrollHeight;
   }, [ultimaId]);
+
+  // Presa no fim: fotos, vídeos e figurinhas terminam de carregar depois e aumentam a conversa.
+  // Enquanto a pessoa estiver no fim (ao abrir, ou se não subiu), continua mostrando a última mensagem.
+  useEffect(() => {
+    const el = rolagem.current, conteudo = conteudoRef.current;
+    if (!el || !conteudo) return;
+    const obs = new ResizeObserver(() => { if (noFim.current) el.scrollTop = el.scrollHeight; });
+    obs.observe(conteudo);
+    return () => obs.disconnect();
+  }, []);
 
   // Mensagens antigas entraram em cima: mantém na tela o que a pessoa estava lendo.
   useLayoutEffect(() => {
@@ -173,6 +187,8 @@ export default function Chat({ contato, etapa, onMudarEtapa, irParaMensagem }) {
   // sistema (descer ao abrir, manter a posição) são para baixo e não contam.
   function aoRolar(e) {
     const topo = e.currentTarget.scrollTop;
+    const { scrollHeight, clientHeight } = e.currentTarget;
+    noFim.current = scrollHeight - topo - clientHeight < PERTO_DO_FIM;
     const subindo = topo < ultimoTopo.current;
     ultimoTopo.current = topo;
     clearTimeout(esperaTopo.current);
@@ -193,6 +209,7 @@ export default function Chat({ contato, etapa, onMudarEtapa, irParaMensagem }) {
     const el = document.getElementById(`msg-${messageId}`);
     // Mensagem citada numa página que ainda não carregou: busca até ela e volta aqui.
     if (!el) { if (temMais) carregarAnteriores(messageId); return; }
+    noFim.current = false; // vai até a mensagem, não volta sozinho para o fim
     el.scrollIntoView({ block: "center", behavior: "smooth" });
     setDestacada(messageId);
     setTimeout(() => setDestacada(null), 1500);
@@ -310,6 +327,7 @@ export default function Chat({ contato, etapa, onMudarEtapa, irParaMensagem }) {
         className={`h-full overflow-y-auto overscroll-contain px-2.5 md:px-4 pt-6 ${etapa ? "pb-12" : "pb-3"} bg-fundo`}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) arquivoEscolhido(f); }}>
+        <div ref={conteudoRef}>
         {!iniciada && <EsqueletoBolhas />}
         {iniciada && msgs.length === 0 && (
           <p className="text-center text-sm text-tinta-suave py-8 animate-aparecer">Nenhuma mensagem ainda.</p>
@@ -347,6 +365,7 @@ export default function Chat({ contato, etapa, onMudarEtapa, irParaMensagem }) {
             </div>
           );
         })}
+        </div>
       </div>
       {/* Onde o lead está no funil, sempre à vista no canto da conversa; clicar muda a etapa */}
       {etapa && (
